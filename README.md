@@ -13,6 +13,20 @@
 
 ---
 
+## ⬇️ 一键下载 / Quick Download
+
+> 不想看源码？直接到 [Releases 发行页](https://github.com/xiaoyao12740/autotappro/releases/latest) 按设备下载 APK，开箱即用；想二次开发见文末「基于源码开发」章节。
+
+| 你的设备 | 推荐下载 | 说明 |
+|---|---|---|
+| 📱 Android 9+（推荐） | [AutoTapPro-Android-v1.0.0-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.0/AutoTapPro-Android-v1.0.0-release.apk) | 正式签名包，日常使用 |
+| 📱 Android 9+（调试） | [AutoTapPro-Android-v1.0.0-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.0/AutoTapPro-Android-v1.0.0-debug.apk) | 调试密钥签名，供排障对比 |
+
+- 全部资产、版本说明与 SHA-256 校验值见 [v1.0.0 Release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.0)。
+- 安装前在系统设置允许“未知来源 / 安装未知应用”；首次使用依次授予悬浮窗、无障碍、电池优化白名单。
+
+---
+
 ## ✨ 功能一览
 
 ### 取点与录制
@@ -75,7 +89,9 @@ AutoTapPro/
       └─ res/                    布局、颜色、图标与无障碍配置
 ```
 
-## 🚀 构建
+## 🛠️ 基于源码开发（开发者）
+
+克隆本仓库后，按以下环境构建；普通使用者无需看本节，直接从顶部下载 APK 即可。
 
 环境：JDK 17、Android SDK 34、build-tools 34.0.0、Gradle 8.10.2。
 
