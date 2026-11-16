@@ -1,0 +1,65 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.aitap.autotappro'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.aitap.autotappro"
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            // 签名库与口令不随源码公开分发。
+            // 在本机 gradle.properties 或环境变量中提供：
+            //   storeFile=autotappro-release.jks 的路径
+            //   storePassword=...
+            //   keyAlias=autotappro
+            //   keyPassword=...
+            storeFile file(project.findProperty("storeFile") ?: "../autotappro-release.jks")
+            storePassword (project.findProperty("storePassword") ?: "") as String
+            keyAlias (project.findProperty("keyAlias") ?: "autotappro") as String
+            keyPassword (project.findProperty("keyPassword") ?: "") as String
+            v1SigningEnabled false
+            v2SigningEnabled true
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            // debug 构建使用本机默认调试密钥，不依赖 release 签名库。
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.recyclerview:recyclerview:1.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+}
