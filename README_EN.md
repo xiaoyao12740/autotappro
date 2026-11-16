@@ -9,6 +9,22 @@
 
 > ⚠️ **For personal & non-commercial use only.** See [`LICENSE`](./LICENSE). No network permission, no ads, fully local.
 
+---
+
+## ⬇️ Quick Download
+
+> Don't want to read source code? Grab an APK from the [Releases page](https://github.com/xiaoyao12740/autotappro/releases/latest); for building from source, see the developer section at the bottom.
+
+| Your device | Download | Notes |
+|---|---|---|
+| 📱 Android 9+ (recommended) | [AutoTapPro-Android-v1.0.0-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.0/AutoTapPro-Android-v1.0.0-release.apk) | Release-signed build for daily use |
+| 📱 Android 9+ (debug) | [AutoTapPro-Android-v1.0.0-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.0/AutoTapPro-Android-v1.0.0-debug.apk) | Debug-key signed, for troubleshooting |
+
+- All assets, release notes and SHA-256 checksums are in the [v1.0.0 release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.0).
+- Allow "install unknown apps" in system settings before installing; grant overlay, accessibility and battery whitelist on first launch.
+
+---
+
 ## ✨ Features
 
 ### Capture & recording
@@ -46,7 +62,9 @@
 - Dependencies: AndroidX AppCompat, Material, ConstraintLayout, RecyclerView, Kotlinx Coroutines (Apache-2.0).
 - No `INTERNET` permission; sequences stay in the private app directory.
 
-## 🚀 Build
+## 🛠️ Build from source (developers)
+
+Clone this repository and build with the toolchain below. End users do not need this section — download an APK from the top of the page.
 
 Requires JDK 17, Android SDK 34, build-tools 34.0.0, Gradle 8.10.2.
 
