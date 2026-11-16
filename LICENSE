@@ -1,0 +1,57 @@
+# 非商业用途开源许可协议 / Non-Commercial Open Source License
+
+**AutoTapPro**（Android 本地自动点击器，下称"本软件"）
+版权所有 © 2026 AutoTapPro 作者（下称"作者"）。保留所有未明示授予的权利。
+
+本软件以"非商业开源（Non-Commercial Open Source）"方式发布。在遵守下列条款的前提下，
+你可以自由地获取、查看、学习、自用、复制与再分发本软件。
+
+## 一、你可以 / You may
+1. 个人或学习用途下，免费使用、运行、复制本软件；
+2. 查看、研究、修改本软件源码，用于个人学习与技术研究；
+3. 在保持本协议与版权声明完整、不收费的前提下，原样再分发本软件。
+
+## 二、你不可以 / You may NOT
+1. **严禁任何形式的商业用途**，包括但不限于：出售、出租、捆绑销售、付费订阅、
+   植入广告盈利、作为商业产品的一部分分发，或用于商业代操作服务；
+2. 不得移除、遮挡或篡改本软件的版权声明、协议文本或作者署名；
+3. 不得将本软件用于任何违法用途，包括但不限于绕过平台规则、处理你无权操作的界面、
+   传播侵权或恶意内容；
+4. 不得用本软件或其衍生作品申请商标、专利，或主张排他性权利；
+5. 未经作者书面许可，不得冒用作者名义对你的修改版本进行背书或宣传。
+
+## 三、修改与衍生 / Modifications
+- 允许个人修改自用；若你公开发布修改版，必须：
+  (a) 同样以本非商业协议开源；(b) 显著标注你所做的修改；(c) 不得使用原项目名称做误导性宣传。
+- 本协议不授予任何商标、商号或标识的使用权。
+
+## 四、第三方组件 / Third-party components
+本软件为 Kotlin 原生应用，仅通过 Gradle 依赖下列独立开源库，**不包含、不复制其专有源代码**，
+它们各自遵循其原始开源许可（主要为 Apache License 2.0），权利归各自所有者：
+
+- AndroidX AppCompat / Material / ConstraintLayout / RecyclerView：Apache-2.0，https://developer.android.com/jetpack/androidx
+- Kotlinx Coroutines：Apache-2.0，https://github.com/Kotlin/kotlinx.coroutines
+- Kotlin 标准库与 Kotlin Gradle 插件：Apache-2.0，https://kotlinlang.org
+
+再分发或商用前，你须自行确认并遵守上述第三方组件的许可条款。
+
+## 五、免责声明 / Disclaimer
+本软件按"现状（AS IS）"提供，不附带任何明示或默示担保，包括适销性、特定用途适用性、
+不侵权或操作结果正确性的担保。因使用或无法使用本软件造成的任何直接或间接损失，
+作者在法律允许的最大范围内**不承担任何责任**。
+
+本软件仅用于本机重复操作的效率验证与自动化测试；不包含任何绕过平台风控或反检测的对抗设计。
+
+## 六、其他 / Misc
+- 本协议的中文与英文版本如有歧义，以**中文版本**为准。
+- 若你希望获得商业授权，或对本协议有疑问，请通过项目仓库的 Issues 联系作者。
+
+---
+
+**English summary (non-binding; Chinese text prevails):**
+This software is released for personal, educational, and other NON-COMMERCIAL use only.
+You may view, study, modify for personal use, and redistribute it free of charge with this
+license intact. You may NOT sell, rent, bundle, monetize (ads/subscriptions), or use it for any
+commercial service or unlawful purpose. It depends only on Apache-2.0 AndroidX / Kotlin libraries
+and ships no proprietary third-party source. The software is provided AS IS with no warranty, and
+the author is not liable for any loss or damage. See the Chinese text above for full terms.
