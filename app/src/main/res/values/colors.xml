@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#3F51B5</color>
+
+    <!-- 主界面（浅色卡片 + 深色文字） -->
+    <color name="card_bg">#F2F4F7</color>
+    <color name="card_stroke">#E2E6EC</color>
+    <color name="text_primary">#1F2937</color>
+    <color name="text_secondary">#6B7280</color>
+
+    <!-- 悬浮层（半透明面板 + 浅色文字；气泡镂空描边） -->
+    <color name="panel_bg">#3326303C</color>
+    <color name="sheet_bg">#E62E3946</color>
+    <color name="sheet_stroke">#45525F</color>
+    <color name="bubble_bg">#00000000</color>
+    <color name="bubble_stroke">#FF66D19F</color>
+    <color name="bubble_text">#FFB7E8CB</color>
+    <color name="overlay_text">#FFFFFF</color>
+    <color name="overlay_text_secondary">#D5DCE4</color>
+</resources>

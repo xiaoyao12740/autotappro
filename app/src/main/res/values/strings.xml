@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AutoTapPro</string>
+    <string name="accessibility_desc">本地自动点击服务：回放点击、长按、滑动手势，并支持音量下键强制停止。</string>
+</resources>

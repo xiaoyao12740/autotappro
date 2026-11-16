@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 零网络权限：不声明 INTERNET。悬浮窗 + 前台服务用于回放控制。 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application
+        android:name=".AppContext"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AutoTapPro">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".service.ClickerFloatingService"
+            android:enabled="true"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|density|keyboardHidden|uiMode"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="本地自动点击器悬浮面板与手势执行" />
+        </service>
+
+        <!-- 调试启停接收器：仅 debug 构建在代码内放行，release 收到广播直接忽略。 -->
+        <receiver
+            android:name=".service.DebugControlReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.aitap.autotappro.DEBUG_START" />
+                <action android:name="com.aitap.autotappro.DEBUG_STOP" />
+                <action android:name="com.aitap.autotappro.DEBUG_PAUSE" />
+                <action android:name="com.aitap.autotappro.DEBUG_RESUME" />
+                <action android:name="com.aitap.autotappro.DEBUG_RECORD_START" />
+                <action android:name="com.aitap.autotappro.DEBUG_RECORD_STOP" />
+                <action android:name="com.aitap.autotappro.DEBUG_ADD_TEST" />
+                <action android:name="com.aitap.autotappro.DEBUG_DEL_LAST" />
+                <action android:name="com.aitap.autotappro.DEBUG_INFO" />
+                <action android:name="com.aitap.autotappro.DEBUG_OPEN_PANEL" />
+                <action android:name="com.aitap.autotappro.DEBUG_DUMP" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".service.TapAccessibilityService"
+            android:enabled="true"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+    </application>
+</manifest>
