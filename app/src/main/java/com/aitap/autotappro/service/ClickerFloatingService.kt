@@ -40,6 +40,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -204,7 +207,15 @@ class ClickerFloatingService : Service() {
         }
         // 脱挂体检：宿主回收后旧引用 parent==null，先置空，重开走完整重建路径。
         clearDanglingRefs()
-        if (panel != null) return
+        // 部分 ROM 会在无障碍宿主静默回收窗口后，View 仍报告 attached/token 有效，
+        // 单纯状态判定无法识别；重开时无条件摘除旧面板引用，确保走完整重建路径。
+        panel?.let { old ->
+            Log.i(TAG, "重开面板：摘除旧视图后重建")
+            removeManaged(old)
+            overlayHosts.remove(old)
+        }
+        panel = null
+        panelParams = null
 
         // 录制层先于面板加入：位于面板下层，录制中面板停止钮仍可点到。
         createRecordOverlay()
@@ -233,10 +244,12 @@ class ClickerFloatingService : Service() {
         rebuildBubbles()
     }
 
-    /** 清理已脱挂（parent==null / 未附着）的残留引用，避免重开被非空守卫拦截。 */
+    /** 清理已脱挂（parent==null / 未附着 / token 失效 / 宿主已销毁）的残留引用，避免重开被非空守卫拦截。 */
     private fun clearDanglingRefs() {
         panel?.let { p ->
-            if (p.parent == null || !p.isAttachedToWindow) {
+            val a11yHostDead = overlayHosts[p] == true && TapAccessibilityService.instance == null
+            val dropped = p.parent == null || !p.isAttachedToWindow || p.windowToken == null || a11yHostDead
+            if (dropped) {
                 overlayHosts.remove(p)
                 panel = null
                 panelParams = null
@@ -273,11 +286,17 @@ class ClickerFloatingService : Service() {
                 }
             }
         }
+        // 就绪态按当前模式实时解析（不依赖运行成功后才回填的 activeChannel）：
+        // 否则 Root 直连且无障碍未绑定的场景下，播放钮会被永久置灰、无法首次启动。
         scope.launch {
-            ClickerCoordinator.activeChannel.collectLatest { kind ->
-                val text = channelLabel(ClickerCoordinator.channelMode(), kind)
-                panel?.setChannelReady(kind != ChannelKind.NONE, text)
-            }
+            combine(
+                ClickerCoordinator.profile.map { it.channelMode }.distinctUntilChanged(),
+                ClickerCoordinator.activeChannel
+            ) { mode, _ -> mode }
+                .collectLatest { mode ->
+                    val res = ChannelResolver.resolve(mode)
+                    panel?.setChannelReady(res.kind != ChannelKind.NONE, channelLabel(mode, res.kind))
+                }
         }
         scope.launch {
             ClickerCoordinator.recording.collectLatest { rec ->
@@ -798,28 +817,26 @@ class ClickerFloatingService : Service() {
             PixelFormat.TRANSPARENT
         )
 
-    private fun chosenOverlayType(): Int {
+    private fun chosenOverlayType(): Int = appOverlayType()
+
+    private fun a11yOverlayType(): Int =
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) appOverlayType()
+        else WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+
+    private fun appOverlayType(): Int =
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             @Suppress("DEPRECATION")
-            return WindowManager.LayoutParams.TYPE_PHONE
-        }
-        return if (TapAccessibilityService.instance != null)
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-        else
+            WindowManager.LayoutParams.TYPE_PHONE
+        } else {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-    }
+        }
 
     private fun addManaged(view: View, params: WindowManager.LayoutParams): Boolean {
-        val useA11y = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            params.type == WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-        if (useA11y && TapAccessibilityService.addOverlayView(view, params)) {
-            overlayHosts[view] = true
-            return true
-        }
-        if (useA11y) {
-            Log.w("TapFloat", "无障碍 overlay addView 失败，回退应用悬浮窗 type=2032")
-            params.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        }
+        // 统一挂到应用悬浮窗宿主（前台服务自有 WindowManager）。部分 ROM 的无障碍 overlay
+        // 宿主会在服务重连/通道切换后静默回收窗口，View 仍附着但 Surface 归零，面板不可见；
+        // 应用悬浮窗由本服务持有，生命周期更稳。宿主归属在 addView 成功后记录，
+        // 后续 updateViewLayout 必须沿用同一宿主的窗口类型。
+        params.type = appOverlayType()
         val ok = runCatching { wm.addView(view, params); true }
             .onFailure { Log.e("TapFloat", "应用悬浮窗 addView 失败: ${it.message}", it) }
             .onSuccess { overlayHosts[view] = false }
@@ -828,7 +845,9 @@ class ClickerFloatingService : Service() {
     }
 
     private fun updateManaged(view: View, params: WindowManager.LayoutParams) {
+        // 按 addView 时记录的宿主归一化窗口类型，避免 update 传入与原窗口不同的 type。
         val byA11y = overlayHosts[view] == true
+        params.type = if (byA11y) a11yOverlayType() else appOverlayType()
         if (byA11y) {
             if (TapAccessibilityService.updateOverlayView(view, params)) return
         } else {
