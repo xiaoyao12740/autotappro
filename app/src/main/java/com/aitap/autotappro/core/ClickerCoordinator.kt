@@ -260,6 +260,27 @@ object ClickerCoordinator {
         postToMain { _profile.update { it.copy(panelCollapsed = collapsed) } }
     }
 
+    /** 悬浮窗拖拽后是否自动吸附到屏幕侧边；切换后即时落盘。 */
+    fun setSnapToEdge(enabled: Boolean) {
+        postToMain {
+            _profile.update { it.copy(snapToEdge = enabled) }
+            persistActiveAsync()
+        }
+    }
+
+    /** 是否在悬浮层显示点位气泡；切换后即时落盘。 */
+    fun setPointsVisible(visible: Boolean) {
+        postToMain {
+            _profile.update { it.copy(pointsVisible = visible) }
+            persistActiveAsync()
+        }
+    }
+
+    private fun persistActiveAsync() {
+        runCatching { repository?.save(_profile.value) }
+            .onFailure { android.util.Log.w("TapRepo", "设置自动保存失败: ${it.message}") }
+    }
+
     private fun postToMain(block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) block() else mainHandler.post(block)
     }
