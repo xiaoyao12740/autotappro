@@ -11,8 +11,8 @@ android {
         applicationId "com.aitap.autotappro"
         minSdk 28
         targetSdk 34
-        versionCode 4
-        versionName "1.0.2"
+        versionCode 5
+        versionName "1.0.3"
     }
 
     buildFeatures {
@@ -21,12 +21,7 @@ android {
 
     signingConfigs {
         release {
-            // 签名库与口令不随源码公开分发。
-            // 在本机 gradle.properties 或环境变量中提供：
-            //   storeFile=autotappro-release.jks 的路径
-            //   storePassword=...
-            //   keyAlias=autotappro
-            //   keyPassword=...
+            // 签名库与口令不随源码公开分发；在本机 gradle.properties 或环境变量中提供。
             storeFile file(project.findProperty("storeFile") ?: "../autotappro-release.jks")
             storePassword (project.findProperty("storePassword") ?: "") as String
             keyAlias (project.findProperty("keyAlias") ?: "autotappro") as String

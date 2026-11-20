@@ -26,7 +26,7 @@ class ProfileRepository(context: Context) {
             val f = File(dir, "$name.json")
             if (f.exists()) runCatching {
                 out.add(ClickProfile.fromJson(JSONObject(f.readText())))
-            }.onFailure { android.util.Log.w("TapRepo", "load profile [$name] failed: ${it.message}") }
+            }.onFailure { L.w("TapRepo", "load profile [$name] failed: ${it.message}") }
         }
         return out.sortedBy { it.name }
     }
@@ -36,7 +36,7 @@ class ProfileRepository(context: Context) {
         runCatching {
             val f = File(dir, "$name.json")
             if (!f.exists()) null else ClickProfile.fromJson(JSONObject(f.readText()))
-        }.onFailure { android.util.Log.w("TapRepo", "load [$name] failed: ${it.message}") }.getOrNull()
+        }.onFailure { L.w("TapRepo", "load [$name] failed: ${it.message}") }.getOrNull()
 
     /** 保存（覆盖同名），并记为活动配置。 */
     fun save(profile: ClickProfile) {

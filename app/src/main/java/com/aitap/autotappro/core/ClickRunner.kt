@@ -2,7 +2,6 @@ package com.aitap.autotappro.core
 
 import android.content.Context
 import android.util.DisplayMetrics
-import android.util.Log
 import android.view.WindowManager
 import com.aitap.autotappro.channel.ChannelResolver
 import com.aitap.autotappro.channel.GestureChannel
@@ -10,6 +9,7 @@ import com.aitap.autotappro.channel.GestureOutcome
 import com.aitap.autotappro.model.ClickPoint
 import com.aitap.autotappro.model.ClickProfile
 import com.aitap.autotappro.model.PointActionType
+import com.aitap.autotappro.model.PointCoords
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +63,9 @@ object ClickRunner {
         realH = metrics.heightPixels.coerceAtLeast(1)
     }
 
+    /** 横竖屏切换后由悬浮服务回调，刷新当前旋转下的真实宽高。 */
+    fun refreshMetrics() = readRealMetrics()
+
     // ---- 运行控制 ----
 
     fun start(profile: ClickProfile): Boolean {
@@ -78,7 +81,7 @@ object ClickRunner {
             val channel = resolution.channel
             if (channel == null) {
                 lastError = resolution.reason
-                Log.w(TAG, "通道未就绪: ${resolution.reason}")
+                L.w(TAG, "通道未就绪: ${resolution.reason}")
                 ClickerCoordinator.setRunState(RunState.Failed)
                 synchronized(lock) { runnerJob = null }
                 return@launch
@@ -86,10 +89,10 @@ object ClickRunner {
             lastError = null
             // 回放前刷新当前旋转下的真实宽高，避免启动后再横竖屏切换导致夹取边界过期。
             readRealMetrics()
-            Log.i(TAG, "START runMode=${profile.runMode} cycleCount=${profile.cycleCount} " +
+            L.i(TAG, "START runMode=${profile.runMode} cycleCount=${profile.cycleCount} " +
                 "loopInterval=${profile.loopIntervalDelayMs}ms channel=${resolution.kind}")
             profile.points.forEach {
-                Log.i(TAG, "  point#${it.id} type=${it.type} (${it.x1.toInt()},${it.y1.toInt()}) " +
+                L.i(TAG, "  point#${it.id} type=${it.type} (${it.x1.toInt()},${it.y1.toInt()}) " +
                     "delayMs=${it.delayMs} repeat=${it.repeatCount} touch=${it.touchDurationMs}ms " +
                     "randDelay=${it.randomDelayMs}ms")
             }
@@ -102,7 +105,7 @@ object ClickRunner {
                 throw c
             } catch (error: Throwable) {
                 lastError = error.message ?: error.javaClass.simpleName
-                Log.e(TAG, "执行失败: ${error.message}", error)
+                L.e(TAG, "执行失败: ${error.message}", error)
                 ClickerCoordinator.setRunState(RunState.Failed)
             } finally {
                 synchronized(lock) {
@@ -198,7 +201,7 @@ object ClickRunner {
                         Random.nextLong(0, point.randomDelayMs + 1) else 0L
                     val wait = (point.delayMs + extra).coerceAtLeast(0L)
                     if (wait > 0L) {
-                        Log.i(TAG, "wait ${wait}ms before dispatch#${dispatchSeq + 1} uptime=${SystemClock.uptimeMillis()}")
+                        L.i(TAG, "wait ${wait}ms before dispatch#${dispatchSeq + 1} uptime=${SystemClock.uptimeMillis()}")
                         // 分片等待：暂停/停止在 ≤60ms 内响应，避免睡完整段 delay 才悬停。
                         var remaining = wait
                         while (remaining > 0L && currentCoroutineContext().isActive) {
@@ -207,13 +210,13 @@ object ClickRunner {
                             remaining -= slice
                             ensureActive(); waitIfPaused()
                         }
-                        Log.i(TAG, "wait resumed uptime=${SystemClock.uptimeMillis()}")
+                        L.i(TAG, "wait resumed uptime=${SystemClock.uptimeMillis()}")
                     }
                 }
                 ensureActive(); waitIfPaused()
 
                 dispatchSeq++
-                Log.i(TAG, "dispatch#$dispatchSeq point#${point.id} uptime=${SystemClock.uptimeMillis()}")
+                L.i(TAG, "dispatch#$dispatchSeq point#${point.id} uptime=${SystemClock.uptimeMillis()}")
                 val outcome = dispatchPoint(channel, point, profile.clickRandomOffsetPx)
                 firstDispatch = false
                 when (outcome) {
@@ -236,25 +239,28 @@ object ClickRunner {
     private suspend fun dispatchPoint(
         channel: GestureChannel, point: ClickPoint, offsetPx: Int
     ): GestureOutcome {
+        // 派发前按当前真实宽高解析坐标；朝向不符时做横纵屏换算。
+        val (cx1, cy1) = PointCoords.resolveStart(point, realW, realH)
+        val (cx2, cy2) = PointCoords.resolveEnd(point, realW, realH)
         return when (point.type) {
         PointActionType.CLICK -> {
-            val (x, y) = applyOffset(point.x1, point.y1, offsetPx)
+            val (x, y) = applyOffset(cx1, cy1, offsetPx)
             channel.tap(x, y, point.touchDurationMs.coerceAtLeast(30L))
         }
         PointActionType.LONG_PRESS -> {
-            val (x, y) = applyOffset(point.x1, point.y1, offsetPx)
+            val (x, y) = applyOffset(cx1, cy1, offsetPx)
             channel.tap(x, y, point.touchDurationMs.coerceAtLeast(400L))
         }
         PointActionType.DOUBLE_CLICK -> {
-            val (x, y) = applyOffset(point.x1, point.y1, offsetPx)
+            val (x, y) = applyOffset(cx1, cy1, offsetPx)
             val first = channel.tap(x, y, point.touchDurationMs.coerceAtLeast(30L))
             if (first != GestureOutcome.Completed) return first
             delay(120L)
             channel.tap(x, y, point.touchDurationMs.coerceAtLeast(30L))
         }
         PointActionType.SWIPE -> {
-            val (sx, sy) = applyOffset(point.x1, point.y1, offsetPx)
-            val (ex, ey) = applyOffset(point.x2, point.y2, offsetPx)
+            val (sx, sy) = applyOffset(cx1, cy1, offsetPx)
+            val (ex, ey) = applyOffset(cx2, cy2, offsetPx)
             channel.swipe(sx, sy, ex, ey, point.touchDurationMs.coerceAtLeast(1L))
         }
         PointActionType.HOME -> channel.goHome()

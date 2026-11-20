@@ -26,8 +26,9 @@ class PointBubbleView(
     context: Context,
     val point: ClickPoint,
     private val isEndpoint: Boolean,
-    private val screenW: Int,
-    private val screenH: Int,
+    private var screenW: Int,
+    private var screenH: Int,
+    private val resolver: (ClickPoint, Boolean) -> Pair<Float, Float>,
     private val onDrag: (Float, Float) -> Unit,
     private val onSelect: (PointBubbleView) -> Unit,
     private val onLongPress: (PointBubbleView) -> Unit
@@ -74,8 +75,9 @@ class PointBubbleView(
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downRawX = e.rawX; downRawY = e.rawY
-                startX = if (isEndpoint) point.x2 else point.x1
-                startY = if (isEndpoint) point.y2 else point.y1
+                // 拖拽起点取当前朝向下解析后的像素，避免朝向不符时从旧坐标起跑。
+                startX = resolver(point, isEndpoint).first
+                startY = resolver(point, isEndpoint).second
                 moved = false; longPressed = false
                 onSelect(this)
                 longPressRunnable = Runnable {
@@ -117,14 +119,20 @@ class PointBubbleView(
         label.text = if (isEndpoint) "②${point.id}" else "${point.id}"
     }
 
-    fun centerX(): Float = if (isEndpoint) point.x2 else point.x1
-    fun centerY(): Float = if (isEndpoint) point.y2 else point.y1
+    fun centerX(): Float = resolver(point, isEndpoint).first
+    fun centerY(): Float = resolver(point, isEndpoint).second
 
     /** 气泡左上角坐标（WindowManager x/y）。 */
     fun left(): Float = centerX() - bubblePx / 2f
     fun top(): Float = centerY() - bubblePx / 2f
 
     fun bubbleSize() = bubblePx
+
+    /** 横竖屏切换后刷新拖动夹取边界，避免仍按旧朝向屏宽高夹取。 */
+    fun updateMetrics(w: Int, h: Int) {
+        screenW = w
+        screenH = h
+    }
 }
 
 /**

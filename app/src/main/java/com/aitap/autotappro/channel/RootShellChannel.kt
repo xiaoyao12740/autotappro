@@ -1,6 +1,6 @@
 package com.aitap.autotappro.channel
 
-import android.util.Log
+import com.aitap.autotappro.core.L
 import com.aitap.autotappro.model.ChannelKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,10 +26,10 @@ class RootShellChannel : GestureChannel {
     private suspend fun exec(command: String): GestureOutcome = withContext(Dispatchers.IO) {
         val result = RootHelper.runSuCommand(command)
         if (result == null) {
-            Log.w("TapRoot", "Root 命令启动失败/超时: $command")
+            L.w("TapRoot", "Root 命令启动失败/超时: $command")
             return@withContext GestureOutcome.Failed("su 进程启动失败或执行超时: $command")
         }
-        Log.i("TapRoot", "Root 命令 exit=${result.exitCode} stdout='${result.stdout.trim()}' stderr='${result.stderr.trim()}' cmd=$command")
+        L.i("TapRoot", "Root 命令 exit=${result.exitCode} stdout='${result.stdout.trim()}' stderr='${result.stderr.trim()}' cmd=$command")
         if (result.exitCode == 0) {
             GestureOutcome.Completed
         } else {

@@ -3,7 +3,7 @@ package com.aitap.autotappro.channel
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
-import android.util.Log
+import com.aitap.autotappro.core.L
 import com.aitap.autotappro.model.ChannelKind
 import com.aitap.autotappro.service.TapAccessibilityService
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -14,10 +14,7 @@ import kotlin.coroutines.resume
  *
  * - CLICK/LONG_PRESS/SWIPE/DOUBLE_CLICK 走 `dispatchGesture`；
  * - HOME/BACK 走 `performGlobalAction`。
- * 坐标为整屏绝对像素。
- *
- * 诊断：每次派发都打 tag=TapA11yService 日志（坐标 / started 标志 / 回调结果），
- * 真机排查“第三方收不到点击”时用 logcat 对照。
+ * 坐标为整屏绝对像素。诊断日志仅 debug 输出。
  */
 class AccessibilityChannel(
     private val service: TapAccessibilityService
@@ -31,10 +28,10 @@ class AccessibilityChannel(
 
     override suspend fun tap(x: Int, y: Int, durationMs: Long): GestureOutcome {
         val dur = durationMs.coerceAtLeast(1L)
-        Log.i(TAG, "dispatchGesture tap x=$x y=$y duration=${dur}ms")
+        L.i(TAG, "dispatchGesture tap x=$x y=$y duration=${dur}ms")
         return runCatching { dispatchTap(x, y, dur) }
             .getOrElse { e ->
-                Log.e(TAG, "dispatchGesture tap 抛异常: ${e.message}", e)
+                L.e(TAG, "dispatchGesture tap 抛异常: ${e.message}", e)
                 GestureOutcome.Failed("无障碍点击异常: ${e.message ?: e.javaClass.simpleName}")
             }
     }
@@ -43,10 +40,10 @@ class AccessibilityChannel(
         sx: Int, sy: Int, ex: Int, ey: Int, durationMs: Long
     ): GestureOutcome {
         val dur = durationMs.coerceAtLeast(1L)
-        Log.i(TAG, "dispatchGesture swipe ($sx,$sy)->($ex,$ey) duration=${dur}ms")
+        L.i(TAG, "dispatchGesture swipe ($sx,$sy)->($ex,$ey) duration=${dur}ms")
         return runCatching { dispatchSwipe(sx, sy, ex, ey, dur) }
             .getOrElse { e ->
-                Log.e(TAG, "dispatchGesture swipe 抛异常: ${e.message}", e)
+                L.e(TAG, "dispatchGesture swipe 抛异常: ${e.message}", e)
                 GestureOutcome.Failed("无障碍滑动异常: ${e.message ?: e.javaClass.simpleName}")
             }
     }
@@ -54,14 +51,14 @@ class AccessibilityChannel(
     override suspend fun goHome(): GestureOutcome =
         runCatching {
             val ok = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-            Log.i(TAG, "performGlobalAction HOME -> $ok")
+            L.i(TAG, "performGlobalAction HOME -> $ok")
             if (ok) GestureOutcome.Completed else GestureOutcome.Failed("performGlobalAction HOME 失败")
         }.getOrElse { GestureOutcome.Failed("HOME 异常: ${it.message}") }
 
     override suspend fun goBack(): GestureOutcome =
         runCatching {
             val ok = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-            Log.i(TAG, "performGlobalAction BACK -> $ok")
+            L.i(TAG, "performGlobalAction BACK -> $ok")
             if (ok) GestureOutcome.Completed else GestureOutcome.Failed("performGlobalAction BACK 失败")
         }.getOrElse { GestureOutcome.Failed("BACK 异常: ${it.message}") }
 
@@ -75,15 +72,15 @@ class AccessibilityChannel(
             val gesture = GestureDescription.Builder().addStroke(stroke).build()
             val started = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
                 override fun onCompleted(g: GestureDescription?) {
-                    Log.i(TAG, "tap onCompleted ($x,$y)")
+                    L.i(TAG, "tap onCompleted ($x,$y)")
                     if (cont.isActive) cont.resume(GestureOutcome.Completed)
                 }
                 override fun onCancelled(g: GestureDescription?) {
-                    Log.w(TAG, "tap onCancelled ($x,$y)")
+                    L.w(TAG, "tap onCancelled ($x,$y)")
                     if (cont.isActive) cont.resume(GestureOutcome.Cancelled)
                 }
             }, null)
-            Log.i(TAG, "tap dispatchGesture returned started=$started")
+            L.i(TAG, "tap dispatchGesture returned started=$started")
             if (!started && cont.isActive) {
                 cont.resume(GestureOutcome.Failed("dispatchGesture 未启动（服务可能未连接或手势不被允许）"))
             }
@@ -100,15 +97,15 @@ class AccessibilityChannel(
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
         val started = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(g: GestureDescription?) {
-                Log.i(TAG, "swipe onCompleted ($sx,$sy)->($ex,$ey)")
+                L.i(TAG, "swipe onCompleted ($sx,$sy)->($ex,$ey)")
                 if (cont.isActive) cont.resume(GestureOutcome.Completed)
             }
             override fun onCancelled(g: GestureDescription?) {
-                Log.w(TAG, "swipe onCancelled ($sx,$sy)->($ex,$ey)")
+                L.w(TAG, "swipe onCancelled ($sx,$sy)->($ex,$ey)")
                 if (cont.isActive) cont.resume(GestureOutcome.Cancelled)
             }
         }, null)
-        Log.i(TAG, "swipe dispatchGesture returned started=$started")
+        L.i(TAG, "swipe dispatchGesture returned started=$started")
         if (!started && cont.isActive) {
             cont.resume(GestureOutcome.Failed("dispatchGesture 未启动（服务可能未连接或手势不被允许）"))
         }

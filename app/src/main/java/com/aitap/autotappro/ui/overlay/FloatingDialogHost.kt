@@ -8,6 +8,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import com.aitap.autotappro.R
+import com.aitap.autotappro.core.L
 
 /**
  * 服务内悬浮弹窗宿主：Service 没有 Activity token，不能用 AlertDialog（BadTokenException）。
@@ -70,7 +71,7 @@ object FloatingDialogHost {
 
         runCatching { wm.addView(mask, maskParams) }
             .onFailure {
-                android.util.Log.e("TapFloat", "弹窗 addView 失败: ${it.message}", it)
+                L.e("TapFloat", "弹窗 addView 失败: ${it.message}", it)
                 onDismiss()
             }
         return handle

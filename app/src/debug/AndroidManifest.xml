@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 调试启停接收器：仅 debug 构建注册，release 源集不含此导出入口。
+         接收器 onReceive 内另有 BuildConfig.DEBUG 守卫双保险。 -->
+    <application>
+        <receiver
+            android:name=".service.DebugControlReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.aitap.autotappro.DEBUG_START" />
+                <action android:name="com.aitap.autotappro.DEBUG_STOP" />
+                <action android:name="com.aitap.autotappro.DEBUG_PAUSE" />
+                <action android:name="com.aitap.autotappro.DEBUG_RESUME" />
+                <action android:name="com.aitap.autotappro.DEBUG_RECORD_START" />
+                <action android:name="com.aitap.autotappro.DEBUG_RECORD_STOP" />
+                <action android:name="com.aitap.autotappro.DEBUG_ADD_TEST" />
+                <action android:name="com.aitap.autotappro.DEBUG_DEL_LAST" />
+                <action android:name="com.aitap.autotappro.DEBUG_INFO" />
+                <action android:name="com.aitap.autotappro.DEBUG_OPEN_PANEL" />
+                <action android:name="com.aitap.autotappro.DEBUG_DUMP" />
+                <action android:name="com.aitap.autotappro.DEBUG_HOLD" />
+                <action android:name="com.aitap.autotappro.DEBUG_ADD_AT" />
+                <action android:name="com.aitap.autotappro.DEBUG_MOVE_PANEL" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

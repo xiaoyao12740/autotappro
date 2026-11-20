@@ -5,3 +5,13 @@ local.properties
 *.jks
 .idea/
 captures/
+
+# 本地过程产物、私有文档与打包产物，不随源码分发（APK 走 Release 资产上传）
+*.apk
+evidence/
+reference/
+test-evidence/
+build-debugcheck/
+release-dist/
+更新日志.md
+MVP验收报告_模拟器.md

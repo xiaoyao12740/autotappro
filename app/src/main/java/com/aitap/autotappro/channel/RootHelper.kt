@@ -2,7 +2,7 @@ package com.aitap.autotappro.channel
 
 import android.content.Context
 import android.provider.Settings
-import android.util.Log
+import com.aitap.autotappro.core.L
 import com.aitap.autotappro.service.TapAccessibilityService
 import java.util.concurrent.TimeUnit
 
@@ -27,12 +27,12 @@ object RootHelper {
     fun isRootAvailable(): Boolean {
         val result = runSuCommand("id")
         if (result == null) {
-            Log.w(TAG, "Root 探测：su 进程启动失败或超时")
+            L.w(TAG, "Root 探测：su 进程启动失败或超时")
             return false
         }
         val combined = (result.stdout + result.stderr).trim()
         val ok = result.exitCode == 0 && Regex("uid=0\\b").containsMatchIn(combined)
-        Log.i(TAG, "Root 探测 id exit=${result.exitCode} stdout='${result.stdout.trim()}' stderr='${result.stderr.trim()}' -> root=$ok")
+        L.i(TAG, "Root 探测 id exit=${result.exitCode} stdout='${result.stdout.trim()}' stderr='${result.stderr.trim()}' -> root=$ok")
         return ok
     }
 

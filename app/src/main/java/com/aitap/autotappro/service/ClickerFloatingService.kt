@@ -3,6 +3,7 @@ package com.aitap.autotappro.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -12,8 +13,9 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
-import android.util.Log
+import com.aitap.autotappro.core.L
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
@@ -25,6 +27,7 @@ import com.aitap.autotappro.core.RunState
 import com.aitap.autotappro.model.ChannelKind
 import com.aitap.autotappro.model.ClickPoint
 import com.aitap.autotappro.model.PointActionType
+import com.aitap.autotappro.model.PointCoords
 import com.aitap.autotappro.model.channelLabel
 import com.aitap.autotappro.ui.overlay.AddActionMenu
 import com.aitap.autotappro.ui.overlay.FloatingDialogHost
@@ -34,6 +37,8 @@ import com.aitap.autotappro.ui.overlay.RecordCaptureOverlay
 import com.aitap.autotappro.ui.overlay.SidePanelView
 import com.aitap.autotappro.ui.overlay.SwipeLineView
 import com.aitap.autotappro.ui.overlay.TentativeMarkerView
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -60,8 +65,14 @@ class ClickerFloatingService : Service() {
         private const val TAG = "TapFloat"
         const val ACTION_START = "com.aitap.autotappro.action.START"
         const val ACTION_STOP = "com.aitap.autotappro.action.STOP"
+        /** 通知栏急停：只停回放、保留悬浮面板，避免面板被系统弹窗盖住时无法停止。 */
+        const val ACTION_STOP_RUNNER = "com.aitap.autotappro.action.STOP_RUNNER"
         const val RECORD_REPLAY_TRIGGER_MS = 100L
         const val RECORD_IGNORE_EXTRA_MS = 250L
+
+        /** 调试期由接收器取用；release 不发调试广播。 */
+        @Volatile var instance: ClickerFloatingService? = null
+            private set
 
         fun start(context: Context) {
             val intent = Intent(context, ClickerFloatingService::class.java).setAction(ACTION_START)
@@ -118,6 +129,7 @@ class ClickerFloatingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         readRealMetrics()
         // 状态栏高作为父帧顶部偏移的初始兜底；首帧布局后用实测位置校正。
@@ -132,6 +144,8 @@ class ClickerFloatingService : Service() {
         wm.defaultDisplay.getRealMetrics(metrics)
         screenW = metrics.widthPixels.coerceAtLeast(1)
         screenH = metrics.heightPixels.coerceAtLeast(1)
+        panel?.updateMetrics(screenW, screenH)
+        bubbles.values.flatten().forEach { it.updateMetrics(screenW, screenH) }
     }
 
     private fun statusBarHeight(): Int {
@@ -147,6 +161,11 @@ class ClickerFloatingService : Service() {
                 .onSuccess {
                     frameOffsetX = loc[0] - params.x
                     frameOffsetY = loc[1] - params.y
+                    L.i(TAG, "captureFrameOffset loc=(${loc[0]},${loc[1]}) params=(${params.x},${params.y})" +
+                        " offset=($frameOffsetX,$frameOffsetY) screen=${screenW}x${screenH}")
+                    sanitizePanelBounds()
+                    // 偏移回写后重排气泡/拟添加标记，避免旋转瞬间仍按旧父帧偏移定位造成位移。
+                    rebuildBubbles()
                 }
         }
     }
@@ -156,15 +175,27 @@ class ClickerFloatingService : Service() {
         val nm = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                channelId, "点击器悬浮面板", NotificationManager.IMPORTANCE_MIN
-            ).apply { description = "保持悬浮面板服务存活" }
+                channelId, "点击器悬浮面板", NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "保持悬浮面板服务存活；面板被遮挡时可在通知栏停止连点"
+                setShowBadge(false)
+                enableVibration(false)
+                enableLights(false)
+                setSound(null, null)
+            }
             nm.createNotificationChannel(channel)
         }
+        val stopIntent = Intent(this, ClickerFloatingService::class.java).setAction(ACTION_STOP_RUNNER)
+        val stopPi = PendingIntent.getService(
+            this, 0, stopIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         val notification: Notification = Notification.Builder(this, channelId)
             .setContentTitle("AutoTapPro 点击器运行中")
-            .setContentText("侧边悬浮面板已显示")
+            .setContentText("侧边悬浮面板已显示；面板被遮挡时可点下方停止")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setOngoing(true)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止连点", stopPi)
             .build()
         val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
             android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
@@ -173,7 +204,7 @@ class ClickerFloatingService : Service() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                 startForeground(1001, notification, fgsType)
             else startForeground(1001, notification)
-        }.onFailure { Log.w("TapFloat", "startForeground 失败: ${it.message}") }
+        }.onFailure { L.w("TapFloat", "startForeground 失败: ${it.message}") }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -181,6 +212,13 @@ class ClickerFloatingService : Service() {
             ACTION_STOP -> {
                 stopSelf()
                 return START_NOT_STICKY
+            }
+            ACTION_STOP_RUNNER -> {
+                // 通知栏急停：停掉回放但保留悬浮面板，便于再次启动。
+                ClickRunner.stop()
+                ClickerCoordinator.setRunState(RunState.Idle)
+                L.i(TAG, "通知栏急停：回放已停止")
+                return START_STICKY
             }
             else -> showOverlay()
         }
@@ -194,9 +232,46 @@ class ClickerFloatingService : Service() {
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
         readRealMetrics()
+        // 运行中旋转也刷新 Runner 的真实宽高，避免派发仍按旧朝向边界换算。
+        ClickRunner.refreshMetrics()
         panel?.let { p -> panelParams?.let { captureFrameOffset(p, it) } }
-        Log.i(TAG, "onConfigurationChanged screen=${screenW}x${screenH} orientation=${newConfig.orientation}")
+        // 横竖屏切换后把面板校正进新边界内，避免旧坐标落到屏外或贴边留白。
+        sanitizePanelBounds()
+        L.i(TAG, "onConfigurationChanged screen=${screenW}x${screenH} orientation=${newConfig.orientation}")
         rebuildBubbles()
+        // 首帧布局可能仍带旧朝向偏移；延迟到窗口完成新朝向布局后再测一次并校正气泡。
+        scope.launch {
+            delay(250L)
+            readRealMetrics()
+            ClickRunner.refreshMetrics()
+            panel?.let { p -> panelParams?.let { captureFrameOffset(p, it) } }
+            sanitizePanelBounds()
+            rebuildBubbles()
+        }
+    }
+
+    /** 面板参数在当前横竖屏真实边界内夹取（扣除悬浮父帧偏移）。 */
+    private fun panelMaxX(): Int {
+        val w = panel?.panelWidthPx() ?: return 0
+        return (screenW - frameOffsetX - w).coerceAtLeast(0)
+    }
+
+    private fun panelMaxY(): Int {
+        val h = panel?.panelHeightPx() ?: return 0
+        return (screenH - frameOffsetY - h).coerceAtLeast(0)
+    }
+
+    /** 相对父帧的负向边界：父帧原点在整屏有偏移时，负 params 才能贴到物理左/上边缘。 */
+    private fun panelMinX(): Int = -frameOffsetX
+    private fun panelMinY(): Int = -frameOffsetY
+
+    private fun sanitizePanelBounds() {
+        val p = panel ?: return
+        val params = panelParams ?: return
+        params.x = params.x.coerceIn(panelMinX(), panelMaxX())
+        params.y = params.y.coerceIn(panelMinY(), panelMaxY())
+        p.setPanelPosition(params.x, params.y)
+        updateManaged(p, params)
     }
 
     private fun showOverlay() {
@@ -210,14 +285,14 @@ class ClickerFloatingService : Service() {
         // 部分 ROM 会在无障碍宿主静默回收窗口后，View 仍报告 attached/token 有效，
         // 单纯状态判定无法识别；重开时无条件摘除旧面板引用，确保走完整重建路径。
         panel?.let { old ->
-            Log.i(TAG, "重开面板：摘除旧视图后重建")
+            L.i(TAG, "重开面板：摘除旧视图后重建")
             removeManaged(old)
             overlayHosts.remove(old)
         }
         panel = null
         panelParams = null
 
-        // 录制层先于面板加入：位于面板下层，录制中面板停止钮仍可点到。
+        // 录制层先于面板加入：同一应用悬浮窗宿主内后挂载的面板居于上层，录制中停止钮仍可点到。
         createRecordOverlay()
         createFeedbackChip()
 
@@ -230,11 +305,13 @@ class ClickerFloatingService : Service() {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP or Gravity.START
             ).apply { x = 8; y = 240 }
+            // 主控面板必须留在应用悬浮窗宿主：无障碍 overlay 宿主在服务重连/通道切换后
+            // 会静默回收窗口（View 附着但 Surface 归零，面板不可见），稳定性不达标。
             addManaged(panel!!, params)
             panelParams = params
             captureFrameOffset(panel!!, params)
         } catch (t: Throwable) {
-            Log.e("TapFloat", "面板 addView 失败: ${t.javaClass.simpleName} ${t.message}", t)
+            L.e("TapFloat", "面板 addView 失败: ${t.javaClass.simpleName} ${t.message}", t)
             Toast.makeText(this, "悬浮面板添加失败: ${t.message}", Toast.LENGTH_LONG).show()
             stopSelf()
             return
@@ -319,12 +396,15 @@ class ClickerFloatingService : Service() {
     // ---- 面板回调 ----
 
     private val panelCallbacks = object : SidePanelView.Callbacks {
-        override fun onTogglePlayPause() {
-            Log.i(TAG, "面板▶点击 runState=${ClickerCoordinator.runState.value} " +
+        override fun onToggleRun() {
+            L.i(TAG, "面板启停点击 runState=${ClickerCoordinator.runState.value} " +
                 "channel=${ClickerCoordinator.activeChannel.value}")
+            if (ClickerCoordinator.recording.value.isRecording) {
+                Toast.makeText(this@ClickerFloatingService, "录制中请先停止录制", Toast.LENGTH_LONG).show()
+                return
+            }
             when (ClickerCoordinator.runState.value) {
-                RunState.Running -> ClickRunner.pause()
-                RunState.Paused -> ClickRunner.resume()
+                RunState.Running, RunState.Paused -> ClickRunner.stop()
                 else -> {
                     // 先同步把气泡切到不可触摸，确保第一次注入手势不会被仍可触摸的气泡截留
                     // （StateFlow 观察回调与 updateViewLayout 是异步的，晚于首轮派发会产生竞态）。
@@ -334,12 +414,6 @@ class ClickerFloatingService : Service() {
                     }
                 }
             }
-        }
-
-        override fun onEmergencyStop() {
-            Log.i(TAG, "面板⏹急停")
-            // 急停：只终止执行回 Idle，保留悬浮面板；与 ✕（停止并关闭面板）分开。
-            ClickRunner.stop()
         }
 
         override fun onToggleRecord() {
@@ -364,11 +438,11 @@ class ClickerFloatingService : Service() {
 
         override fun onAddPoint() {
             if (ClickerCoordinator.recording.value.isRecording) {
-                Log.i(TAG, "录制中忽略添加点位")
+                L.i(TAG, "录制中忽略添加点位")
                 Toast.makeText(this@ClickerFloatingService, "录制中不可添加点位，请先停止录制", Toast.LENGTH_LONG).show()
                 return
             }
-            Log.i(TAG, "面板＋添加点位")
+            L.i(TAG, "面板＋添加点位")
             AddActionMenu.show(
                 this@ClickerFloatingService, wm,
                 onPick = { type -> addPointOfType(type) },
@@ -410,7 +484,8 @@ class ClickerFloatingService : Service() {
 
         override fun onPanelMoved(x: Int, y: Int) {
             panelParams?.let { p ->
-                p.x = x; p.y = y
+                p.x = x.coerceIn(panelMinX(), panelMaxX())
+                p.y = y.coerceIn(panelMinY(), panelMaxY())
                 panel?.let { updateManaged(it, p) }
             }
         }
@@ -420,7 +495,13 @@ class ClickerFloatingService : Service() {
         }
 
         override fun onPanelLayoutChanged() {
-            panel?.let { v -> panelParams?.let { updateManaged(v, it) } }
+            panel?.let { v ->
+                panelParams?.let {
+                    updateManaged(v, it)
+                    // 布局重排后父帧位置可能已变（横竖屏切换），重测一次偏移并校正气泡。
+                    captureFrameOffset(v, it)
+                }
+            }
         }
 
         override fun onToggleCollapseKnob() {
@@ -434,21 +515,32 @@ class ClickerFloatingService : Service() {
     }
 
     /**
-     * 拖拽松手后按开关吸附到最近的左/右边缘；未开启吸附则保持松手位置。
-     * 仅贴边横向归位，纵向位置不变。
+     * 拖拽松手后吸附到距离最近的一条屏幕边（上 / 下 / 左 / 右均可）；未开启吸附则保持松手位置。
+     * 边界按当前横竖屏真实尺寸 + 悬浮父帧偏移计算；贴边目标用视图实测屏幕坐标换算，
+     * 避免父帧有偏移时贴边留白。
      */
     private fun snapPanelToEdge() {
         val p = panel ?: return
         val params = panelParams ?: return
         if (!ClickerCoordinator.profile.value.snapToEdge) return
         val w = p.panelWidthPx()
-        val center = params.x + w / 2f
-        val targetX = if (center < screenW / 2f) 0 else (screenW - w).coerceAtLeast(0)
-        if (params.x != targetX) {
-            params.x = targetX
-            p.setPanelPosition(params.x, params.y)
-            updateManaged(p, params)
+        val h = p.panelHeightPx()
+        // 距离用 params（相对父帧）+ 实测父帧偏移换算绝对坐标；不读 getLocationOnScreen——
+        // updateViewLayout 后视图帧异步提交，旧坐标会导致四边距离算错、全部误吸到同一边。
+        val absX = params.x + frameOffsetX
+        val absY = params.y + frameOffsetY
+        val distL = absX
+        val distR = screenW - (absX + w)
+        val distT = absY
+        val distB = screenH - (absY + h)
+        when (minOf(distL, distR, distT, distB)) {
+            distL -> params.x = panelMinX()
+            distR -> params.x = panelMaxX()
+            distT -> params.y = panelMinY()
+            else -> params.y = panelMaxY()
         }
+        p.setPanelPosition(params.x, params.y)
+        updateManaged(p, params)
     }
 
     // ---- 点位气泡 ----
@@ -457,6 +549,9 @@ class ClickerFloatingService : Service() {
         val cx = (screenW / 2f)
         val cy = (screenH / 2f)
         ClickerCoordinator.addPoint(type, cx, cy, cx, cy)
+        ClickerCoordinator.profile.value.points.lastOrNull()?.let {
+            PointCoords.markCurrent(it, screenW, screenH)
+        }
     }
 
     private fun rebuildBubbles() {
@@ -508,6 +603,8 @@ class ClickerFloatingService : Service() {
         isEndpoint: Boolean
     ) {
         if (isEndpoint) { point.x2 = nx; point.y2 = ny } else { point.x1 = nx; point.y1 = ny }
+        // 拖拽落在当前朝向，刷新点位的朝向标识与源宽高，避免下次换算按旧朝向处理。
+        PointCoords.markCurrent(point, screenW, screenH)
         updateManaged(bubble, bubbleParams(bubble))
         refreshLine()
     }
@@ -520,6 +617,7 @@ class ClickerFloatingService : Service() {
         val holder = arrayOfNulls<PointBubbleView>(1)
         val bubble = PointBubbleView(
             this, point, isEndpoint, screenW, screenH,
+            resolver = coordResolver,
             onDrag = { nx, ny -> holder[0]?.let { onDrag(it, nx, ny) } },
             onSelect = { selected ->
                 if (!ClickerCoordinator.recording.value.isRecording) {
@@ -530,7 +628,7 @@ class ClickerFloatingService : Service() {
                 if (!ClickerCoordinator.recording.value.isRecording) {
                     selectedPointId = selected.point.id
                     PointParamDialog.show(
-                        this, wm, point,
+                        this, wm, point, screenW, screenH,
                         onSave = { persistAfterEdit() },
                         onDelete = {
                             ClickerCoordinator.removePoint(it.id)
@@ -544,7 +642,7 @@ class ClickerFloatingService : Service() {
         holder[0] = bubble
         val params = bubbleParams(bubble)
         runCatching { addManaged(bubble, params) }
-            .onFailure { Log.e("TapFloat", "气泡 addView 失败 #${point.id}: ${it.message}", it) }
+            .onFailure { L.e("TapFloat", "气泡 addView 失败 #${point.id}: ${it.message}", it) }
         return bubble
     }
 
@@ -570,6 +668,12 @@ class ClickerFloatingService : Service() {
      * 首轮注入手势可能赶在生效前发出，仍被仍可触摸的气泡截留。这里采用移除后按新
      * LayoutParams 重新 `addView`：flags 在窗口创建时原子生效，确保切换确定落地。
      */
+    /** 点位坐标按当前朝向解析给气泡/标记/连线使用。 */
+    private val coordResolver: (ClickPoint, Boolean) -> Pair<Float, Float> = { point, endpoint ->
+        if (endpoint) PointCoords.resolveEnd(point, screenW, screenH)
+        else PointCoords.resolveStart(point, screenW, screenH)
+    }
+
     /** 气泡可触摸编辑的前提：非运行/暂停，且不在录制态。 */
     private fun bubblesTouchableAllowed(): Boolean {
         val s = ClickerCoordinator.runState.value
@@ -595,15 +699,17 @@ class ClickerFloatingService : Service() {
                 val line = SwipeLineView(this).also { tentativeLine = it }
                 runCatching { addManaged(line, fullScreenParams()) }
                 tentative.add(line)
-                val start = TentativeMarkerView(this, point, isEndpoint = false)
-                val end = TentativeMarkerView(this, point, isEndpoint = true)
+                val start = TentativeMarkerView(this, point, isEndpoint = false, coordResolver)
+                val end = TentativeMarkerView(this, point, isEndpoint = true, coordResolver)
                 runCatching { addManaged(start, tentativeParams(start)) }
                 runCatching { addManaged(end, tentativeParams(end)) }
                 tentative.add(start)
                 tentative.add(end)
-                line.setLine(point.x1, point.y1, point.x2, point.y2)
+                val (tx1, ty1) = PointCoords.resolveStart(point, screenW, screenH)
+                val (tx2, ty2) = PointCoords.resolveEnd(point, screenW, screenH)
+                line.setLine(tx1, ty1, tx2, ty2)
             } else {
-                val m = TentativeMarkerView(this, point, isEndpoint = false)
+                val m = TentativeMarkerView(this, point, isEndpoint = false, coordResolver)
                 runCatching { addManaged(m, tentativeParams(m)) }
                 tentative.add(m)
             }
@@ -711,23 +817,43 @@ class ClickerFloatingService : Service() {
             onRecorded(type, x1, y1, x2, y2, dur, startedAt)
         }
         val params = fullScreenParams()
+        // 录制层留在应用悬浮窗宿主，先于面板挂载：同宿主内面板后 addView 居于上层，
+        // 录制中停止钮仍可点到。无障碍 overlay 层级恒高于普通 overlay，可触摸时会反过来
+        // 盖住面板截留停止钮，且 A11y 宿主存在静默回收风险，故录制层不迁 A11y。
         addManaged(view, params)
         recordOverlay = view
         recordParams = params
     }
 
+    /** 服务销毁时摘除全屏捕获层并清空引用与忽略窗协程。 */
+    private fun removeRecordOverlay() {
+        recordPassthroughJob?.cancel()
+        recordPassthroughJob = null
+        recordOverlay?.let { removeManaged(it) }
+        recordOverlay = null
+        recordParams = null
+    }
+
     /** 录制层触摸态：录制中可触摸以截留手势记录；其余态 NOT_TOUCHABLE 穿透到目标 App。 */
     private fun setRecordTouchable(touchable: Boolean) {
-        val view = recordOverlay ?: return
-        val params = recordParams ?: return
+        val view = recordOverlay ?: run {
+            L.w(TAG, "setRecordTouchable 跳过：recordOverlay=null touchable=$touchable"); return
+        }
+        val params = recordParams ?: run {
+            L.w(TAG, "setRecordTouchable 跳过：recordParams=null touchable=$touchable"); return
+        }
         val flag = WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         val hasFlag = (params.flags and flag) != 0
         val needFlag = !touchable
+        L.i(TAG, "setRecordTouchable touchable=$touchable hasFlag=$hasFlag needFlag=$needFlag " +
+            "flagsBefore=${params.flags} hostA11y=${overlayHosts[view]}")
         if (hasFlag == needFlag) return
         params.flags = if (needFlag) params.flags or flag else params.flags and flag.inv()
+        L.i(TAG, "setRecordTouchable flagsAfter=${params.flags} -> updateManaged")
         // 用 updateViewLayout 改 flags，不能移除后重 addView——重加会把录制层提到 z-order 最顶层，
         // 盖住面板并截留停止录制钮的触摸（表现为录不停）。录制层必须始终位于面板下层。
-        updateManaged(view, params)
+        val ok = updateManagedChecked(view, params)
+        L.i(TAG, "setRecordTouchable updateManaged ok=$ok")
     }
 
     private fun onRecorded(
@@ -739,10 +865,12 @@ class ClickerFloatingService : Service() {
             type = type, x1 = x1, y1 = y1, x2 = x2, y2 = y2,
             touchDurationMs = durationMs, startedAtMillis = startedAtMillis
         ) ?: return
+        // 录制落在哪种朝向，就把该朝向与源宽高记到点位上。
+        PointCoords.markCurrent(point, screenW, screenH)
         val count = ClickerCoordinator.recording.value.recordedCount
         // 系统可能静默 Toast，改用顶部悬浮反馈条显示类型与起止坐标。
         showFeedback(recordFeedbackText(count, type, x1, y1, x2, y2, durationMs))
-        Log.i(TAG, "录制 #$count ${recordFeedbackText(count, type, x1, y1, x2, y2, durationMs)}")
+        L.i(TAG, "录制 #$count ${recordFeedbackText(count, type, x1, y1, x2, y2, durationMs)}")
         // 刷新拟添加虚线圆标记（非触摸，停止录制后由正式气泡接替）。
         renderTentative()
         // 录制即穿透：同步把这一步模拟到目标 App，忽略窗口内不再回录合成手势。
@@ -770,7 +898,7 @@ class ClickerFloatingService : Service() {
                 PointActionType.BACK -> channel.goBack()
                 else -> channel.tap(point.x1.toInt(), point.y1.toInt(), point.touchDurationMs.coerceAtLeast(30L))
             }
-            Log.i(TAG, "录制穿透回放 ${point.type} (${point.x1.toInt()},${point.y1.toInt()}) -> $outcome")
+            L.i(TAG, "录制穿透回放 ${point.type} (${point.x1.toInt()},${point.y1.toInt()}) -> $outcome")
             // 派发结束后再延长一次忽略窗，兜底收尾/迟到事件。
             armRecordPassthrough(point.touchDurationMs)
         }
@@ -796,7 +924,9 @@ class ClickerFloatingService : Service() {
         val swipe = ClickerCoordinator.profile.value.points.firstOrNull {
             it.type == PointActionType.SWIPE
         } ?: return
-        line.setLine(swipe.x1, swipe.y1, swipe.x2, swipe.y2)
+        val (sx, sy) = PointCoords.resolveStart(swipe, screenW, screenH)
+        val (ex, ey) = PointCoords.resolveEnd(swipe, screenW, screenH)
+        line.setLine(sx, sy, ex, ey)
     }
 
     private fun persistAfterEdit() {
@@ -804,9 +934,62 @@ class ClickerFloatingService : Service() {
         rebuildBubbles()
     }
 
+    /**
+     * 调试专用：在收起圆钮中心模拟一次真实 DOWN → 保持 holdMs → UP，
+     * 直接走面板自身 dispatchTouchEvent 状态机，用于在 adb 无法长按注入的 ROM 上
+     * 验证「长按展开、短按启停」判定。仅 debug 广播调用，release 不暴露入口。
+     */
+    /** 调试专用：在指定绝对坐标加一个 CLICK 点并打上当前朝向元数据，供横纵屏换算复测。 */
+    fun debugAddPointAt(x: Float, y: Float) {
+        ClickerCoordinator.addPoint(PointActionType.CLICK, x, y, x, y)
+        ClickerCoordinator.profile.value.points.lastOrNull()?.let {
+            PointCoords.markCurrent(it, screenW, screenH)
+        }
+        rebuildBubbles()
+        L.i(TAG, "DEBUG_ADD_AT ($x,$y) screen=${screenW}x${screenH}")
+    }
+
+    /** 调试专用：把面板移到给定（相对父帧）坐标并可选松手吸附，回写夹取后的边界，供四边停留逻辑真机验证。 */
+    fun debugMovePanelTo(x: Int, y: Int, snap: Boolean) {
+        val p = panel ?: run { L.i(TAG, "DEBUG_MOVE panel=null"); return }
+        val params = panelParams ?: run { L.i(TAG, "DEBUG_MOVE params=null"); return }
+        params.x = x.coerceIn(panelMinX(), panelMaxX())
+        params.y = y.coerceIn(panelMinY(), panelMaxY())
+        p.setPanelPosition(params.x, params.y)
+        updateManaged(p, params)
+        if (snap) snapPanelToEdge()
+        L.i(TAG, "DEBUG_MOVE target=($x,$y) snap=$snap -> params=(${params.x},${params.y}) " +
+            "boundsX=[${panelMinX()},${panelMaxX()}] boundsY=[${panelMinY()},${panelMaxY()}] " +
+            "offset=($frameOffsetX,$frameOffsetY) screen=${screenW}x${screenH}")
+    }
+
+    fun debugSimulateHold(holdMs: Long) {
+        val p = panel ?: run { L.i(TAG, "DEBUG_HOLD panel=null"); return }
+        val loc = IntArray(2)
+        p.getLocationOnScreen(loc)
+        val cx = loc[0] + p.width / 2f
+        val cy = loc[1] + p.height / 2f
+        val now = SystemClock.uptimeMillis()
+        val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, cx, cy, 0)
+        L.i(TAG, "DEBUG_HOLD down center=($cx,$cy) collapsed=${p.isCollapsed()}")
+        p.dispatchTouchEvent(down)
+        Handler(Looper.getMainLooper()).postDelayed({
+            val upTime = SystemClock.uptimeMillis()
+            val up = MotionEvent.obtain(upTime, upTime, MotionEvent.ACTION_UP, cx, cy, 0)
+            p.dispatchTouchEvent(up)
+            L.i(TAG, "DEBUG_HOLD up dispatched collapsed=${p.isCollapsed()}")
+        }, holdMs)
+    }
+
     private fun baseParams(w: Int, h: Int, gravity: Int) =
-        WindowManager.LayoutParams(w, h, chosenOverlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT)
-            .apply { this.gravity = gravity }
+        // NOT_TOUCH_MODAL：窗口矩形外的触摸穿透到下层应用，不被本悬浮窗模态截留；
+        // 缺该标志时小窗口也会按模态处理，易被系统判定为“遮挡/拦截操作”而弹风控提醒。
+        WindowManager.LayoutParams(
+            w, h, chosenOverlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply { this.gravity = gravity }
 
     private fun fullScreenParams() =
         WindowManager.LayoutParams(
@@ -831,29 +1014,46 @@ class ClickerFloatingService : Service() {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         }
 
-    private fun addManaged(view: View, params: WindowManager.LayoutParams): Boolean {
-        // 统一挂到应用悬浮窗宿主（前台服务自有 WindowManager）。部分 ROM 的无障碍 overlay
-        // 宿主会在服务重连/通道切换后静默回收窗口，View 仍附着但 Surface 归零，面板不可见；
-        // 应用悬浮窗由本服务持有，生命周期更稳。宿主归属在 addView 成功后记录，
-        // 后续 updateViewLayout 必须沿用同一宿主的窗口类型。
+    /**
+     * @param preferA11y true 时，无障碍服务在线则优先挂 TYPE_ACCESSIBILITY_OVERLAY（与成熟三方
+     *        连点器一致：不可触摸/穿透类标记层不计入普通悬浮窗风控统计）；无障碍未在线或挂载
+     *        失败时回退应用悬浮窗宿主。可触摸主控面板必须传 false，由应用悬浮窗持有，保证生命周期稳定。
+     * 宿主归属在 addView 成功后记录，后续 update/remove 必须沿用同一宿主与窗口类型。
+     */
+    private fun addManaged(view: View, params: WindowManager.LayoutParams, preferA11y: Boolean = false): Boolean {
+        if (preferA11y && TapAccessibilityService.instance != null) {
+            params.type = a11yOverlayType()
+            if (TapAccessibilityService.addOverlayView(view, params)) {
+                overlayHosts[view] = true
+                return true
+            }
+            L.w("TapFloat", "无障碍 overlay 挂载失败，回退普通悬浮窗: ${view.javaClass.simpleName}")
+        }
         params.type = appOverlayType()
         val ok = runCatching { wm.addView(view, params); true }
-            .onFailure { Log.e("TapFloat", "应用悬浮窗 addView 失败: ${it.message}", it) }
+            .onFailure { L.e("TapFloat", "应用悬浮窗 addView 失败: ${it.message}", it) }
             .onSuccess { overlayHosts[view] = false }
             .getOrElse { false }
         return ok
     }
 
     private fun updateManaged(view: View, params: WindowManager.LayoutParams) {
+        updateManagedChecked(view, params)
+    }
+
+    private fun updateManagedChecked(view: View, params: WindowManager.LayoutParams): Boolean {
         // 按 addView 时记录的宿主归一化窗口类型，避免 update 传入与原窗口不同的 type。
         val byA11y = overlayHosts[view] == true
         params.type = if (byA11y) a11yOverlayType() else appOverlayType()
         if (byA11y) {
-            if (TapAccessibilityService.updateOverlayView(view, params)) return
+            if (TapAccessibilityService.updateOverlayView(view, params)) return true
+            L.e("TapFloat", "updateManaged A11y 失败: ${view.javaClass.simpleName}")
         } else {
-            runCatching { wm.updateViewLayout(view, params); return }
+            return runCatching { wm.updateViewLayout(view, params); true }
+                .onFailure { L.e("TapFloat", "updateManaged 普通窗失败: ${view.javaClass.simpleName} ${it.message}", it) }
+                .getOrDefault(false)
         }
-        TapAccessibilityService.updateOverlayView(view, params)
+        return TapAccessibilityService.updateOverlayView(view, params)
     }
 
     private fun removeManaged(view: View) {
@@ -863,14 +1063,13 @@ class ClickerFloatingService : Service() {
     }
 
     override fun onDestroy() {
+        instance = null
         profileJob?.cancel(); stateJob?.cancel()
-        recordPassthroughJob?.cancel()
         bubbles.values.flatten().forEach { removeManaged(it) }
         bubbles.clear()
         swipeLine?.let { removeManaged(it) }
         swipeLine = null
-        recordOverlay?.let { removeManaged(it) }
-        recordOverlay = null
+        removeRecordOverlay()
         clearTentative()
         feedbackView?.let { removeManaged(it) }
         feedbackView = null

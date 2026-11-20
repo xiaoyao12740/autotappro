@@ -8,8 +8,10 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import com.aitap.autotappro.core.L
 import com.aitap.autotappro.model.ClickPoint
 import com.aitap.autotappro.model.PointActionType
+import com.aitap.autotappro.model.PointCoords
 
 /**
  * 点位参数悬浮面板（服务内 WindowManager 弹窗，不使用 AlertDialog）。
@@ -21,6 +23,8 @@ object PointParamDialog {
         context: Context,
         wm: WindowManager,
         point: ClickPoint,
+        curW: Int,
+        curH: Int,
         onSave: (ClickPoint) -> Unit,
         onDelete: (ClickPoint) -> Unit,
         onDismiss: () -> Unit
@@ -64,12 +68,15 @@ object PointParamDialog {
             return et
         }
 
-        val etX1 = field("起点 X", point.x1.toInt().toString())
-        val etY1 = field("起点 Y", point.y1.toInt().toString())
+        // 弹窗里按当前朝向屏幕显示解析后的像素；手动改完保存即视为当前朝向下的坐标。
+        val (rx1, ry1) = PointCoords.resolveStart(point, curW, curH)
+        val (rx2, ry2) = PointCoords.resolveEnd(point, curW, curH)
+        val etX1 = field("起点 X", rx1.toInt().toString())
+        val etY1 = field("起点 Y", ry1.toInt().toString())
         var etX2: EditText? = null; var etY2: EditText? = null
         if (isSwipe) {
-            etX2 = field("终点 X", point.x2.toInt().toString())
-            etY2 = field("终点 Y", point.y2.toInt().toString())
+            etX2 = field("终点 X", rx2.toInt().toString())
+            etY2 = field("终点 Y", ry2.toInt().toString())
         }
         val etDelay = field("延迟 (ms)", point.delayMs.toString())
         val etTouch = field("触摸时长 (ms)", point.touchDurationMs.toString())
@@ -142,7 +149,9 @@ object PointParamDialog {
             point.repeatCount = parseInt(rawRepeat, point.repeatCount, 1)
             point.randomOffsetPx = parseInt(etOffset.text.toString(), point.randomOffsetPx, 0)
             point.randomDelayMs = parseLong(etRandDelay.text.toString(), point.randomDelayMs)
-            android.util.Log.i("TapPanel", "保存点位#${point.id} raw[delay='$rawDelay' touch='$rawTouch' repeat='$rawRepeat'] " +
+            // 手动录入的坐标属于当前朝向，刷新标识与源宽高。
+            PointCoords.markCurrent(point, curW, curH)
+            L.i("TapPanel", "保存点位#${point.id} raw[delay='$rawDelay' touch='$rawTouch' repeat='$rawRepeat'] " +
                 "-> delay=${point.delayMs} touch=${point.touchDurationMs} repeat=${point.repeatCount}")
             handle?.dismiss(); onSave(point)
         }

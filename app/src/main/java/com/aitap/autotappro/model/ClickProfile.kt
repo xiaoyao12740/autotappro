@@ -71,7 +71,9 @@ data class ClickProfile(
             )
             val arr = o.optJSONArray("points") ?: return profile
             for (i in 0 until arr.length()) {
-                profile.points.add(ClickPoint.fromJson(arr.getJSONObject(i)))
+                // 逐条容错：单个点位 JSON 缺键 / 类型不符时跳过该点，避免拖垮整份配置载入而回退默认。
+                runCatching { ClickPoint.fromJson(arr.getJSONObject(i)) }
+                    .onSuccess { profile.points.add(it) }
             }
             return profile
         }

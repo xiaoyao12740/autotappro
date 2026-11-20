@@ -165,7 +165,8 @@ object ClickerCoordinator {
                 y2 = y2.coerceAtLeast(0f),
                 delayMs = delay,
                 touchDurationMs = touchDurationMs.coerceAtLeast(1L),
-                repeatCount = 1
+                repeatCount = 1,
+                randomDelayMs = 0L
             )
             created = point
             _profile.update { current.copy(points = (current.points + point).toMutableList()) }
@@ -234,7 +235,7 @@ object ClickerCoordinator {
                 val saved = repo.saveAs(_profile.value, newName)
                 _profile.update { saved }
                 ok = true
-            }.onFailure { android.util.Log.w("TapRepo", "saveAs 失败: ${it.message}") }
+            }.onFailure { L.w("TapRepo", "saveAs 失败: ${it.message}") }
         }
         return ok
     }
@@ -279,7 +280,7 @@ object ClickerCoordinator {
 
     private fun persistActiveAsync() {
         runCatching { repository?.save(_profile.value) }
-            .onFailure { android.util.Log.w("TapRepo", "设置自动保存失败: ${it.message}") }
+            .onFailure { L.w("TapRepo", "设置自动保存失败: ${it.message}") }
     }
 
     private fun postToMain(block: () -> Unit) {

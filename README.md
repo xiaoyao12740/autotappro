@@ -19,9 +19,10 @@
 
 | 你的设备 | 推荐下载 | 说明 |
 |---|---|---|
-| 📱 Android 9+（推荐） | [AutoTapPro-Android-v1.0.2-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.2/AutoTapPro-Android-v1.0.2-release.apk) | 正式签名包，日常使用 |
+| 📱 Android 9+（推荐） | [AutoTapPro-Android-v1.0.3-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.3/AutoTapPro-Android-v1.0.3-release.apk) | 正式签名包，日常使用 |
+| 🧪 调试排障 | [AutoTapPro-Android-v1.0.3-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.3/AutoTapPro-Android-v1.0.3-debug.apk) | 含调试广播入口与诊断日志，仅供排障 |
 
-- 全部资产、版本说明与 SHA-256 校验值见 [v1.0.2 Release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.2)。
+- 全部资产、版本说明与 SHA-256 校验值见 [v1.0.3 Release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.3)。
 - 安装前在系统设置允许“未知来源 / 安装未知应用”；首次使用依次授予悬浮窗、无障碍、电池优化白名单。
 
 ---

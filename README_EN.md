@@ -17,9 +17,10 @@
 
 | Your device | Download | Notes |
 |---|---|---|
-| 📱 Android 9+ (recommended) | [AutoTapPro-Android-v1.0.2-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.2/AutoTapPro-Android-v1.0.2-release.apk) | Release-signed build for daily use |
+| 📱 Android 9+ (recommended) | [AutoTapPro-Android-v1.0.3-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.3/AutoTapPro-Android-v1.0.3-release.apk) | Release-signed build for daily use |
+| 🧪 Debug troubleshooting | [AutoTapPro-Android-v1.0.3-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.3/AutoTapPro-Android-v1.0.3-debug.apk) | Includes debug broadcast entries and diagnostic logs, for troubleshooting only |
 
-- All assets, release notes and SHA-256 checksums are in the [v1.0.2 release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.2).
+- All assets, release notes and SHA-256 checksums are in the [v1.0.3 release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.3).
 - Allow "install unknown apps" in system settings before installing; grant overlay, accessibility and battery whitelist on first launch.
 
 ---

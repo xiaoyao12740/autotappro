@@ -34,25 +34,7 @@
                 android:value="本地自动点击器悬浮面板与手势执行" />
         </service>
 
-        <!-- 调试启停接收器：仅 debug 构建在代码内放行，release 收到广播直接忽略。 -->
-        <receiver
-            android:name=".service.DebugControlReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.aitap.autotappro.DEBUG_START" />
-                <action android:name="com.aitap.autotappro.DEBUG_STOP" />
-                <action android:name="com.aitap.autotappro.DEBUG_PAUSE" />
-                <action android:name="com.aitap.autotappro.DEBUG_RESUME" />
-                <action android:name="com.aitap.autotappro.DEBUG_RECORD_START" />
-                <action android:name="com.aitap.autotappro.DEBUG_RECORD_STOP" />
-                <action android:name="com.aitap.autotappro.DEBUG_ADD_TEST" />
-                <action android:name="com.aitap.autotappro.DEBUG_DEL_LAST" />
-                <action android:name="com.aitap.autotappro.DEBUG_INFO" />
-                <action android:name="com.aitap.autotappro.DEBUG_OPEN_PANEL" />
-                <action android:name="com.aitap.autotappro.DEBUG_DUMP" />
-            </intent-filter>
-        </receiver>
+        <!-- 调试启停接收器仅在 debug 源集 Manifest 注册；release 包不含该导出入口。 -->
 
         <service
             android:name=".service.TapAccessibilityService"

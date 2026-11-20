@@ -20,7 +20,8 @@ import kotlin.math.roundToInt
 class TentativeMarkerView(
     context: Context,
     val point: ClickPoint,
-    private val isEndpoint: Boolean
+    private val isEndpoint: Boolean,
+    private val resolver: (ClickPoint, Boolean) -> Pair<Float, Float>
 ) : FrameLayout(context) {
 
     companion object {
@@ -74,7 +75,7 @@ class TentativeMarkerView(
         super.dispatchDraw(canvas)
     }
 
-    fun centerX(): Float = if (isEndpoint) point.x2 else point.x1
-    fun centerY(): Float = if (isEndpoint) point.y2 else point.y1
+    fun centerX(): Float = resolver(point, isEndpoint).first
+    fun centerY(): Float = resolver(point, isEndpoint).second
     fun markerSize() = markerPx
 }
