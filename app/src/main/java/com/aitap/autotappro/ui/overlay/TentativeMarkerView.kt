@@ -24,7 +24,7 @@ class TentativeMarkerView(
 ) : FrameLayout(context) {
 
     companion object {
-        const val MARKER_DP = 56
+        const val MARKER_DP = 40
     }
 
     private val density = resources.displayMetrics.density
@@ -38,8 +38,8 @@ class TentativeMarkerView(
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(240, 90, 220, 140)
         style = Paint.Style.STROKE
-        strokeWidth = 3.5f * density
-        pathEffect = DashPathEffect(floatArrayOf(12f, 9f), 0f)
+        strokeWidth = 2.5f * density
+        pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f)
     }
 
     private val label: TextView
@@ -48,7 +48,7 @@ class TentativeMarkerView(
         label = TextView(context).apply {
             gravity = Gravity.CENTER
             setTextColor(Color.argb(245, 60, 200, 110))
-            textSize = 15f
+            textSize = 12f
             text = if (isEndpoint) "②${point.id}" else "${point.id}"
         }
         addView(label, LayoutParams(markerPx, markerPx, Gravity.CENTER))
