@@ -17,10 +17,10 @@
 
 | Your device | Download | Notes |
 |---|---|---|
-| 📱 Android 9+ (recommended) | [AutoTapPro-Android-v1.0.0-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.0/AutoTapPro-Android-v1.0.0-release.apk) | Release-signed build for daily use |
-| 📱 Android 9+ (debug) | [AutoTapPro-Android-v1.0.0-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.0/AutoTapPro-Android-v1.0.0-debug.apk) | Debug-key signed, for troubleshooting |
+| 📱 Android 9+ (recommended) | [AutoTapPro-Android-v1.0.1-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.1/AutoTapPro-Android-v1.0.1-release.apk) | Release-signed build for daily use |
+| 📱 Android 9+ (debug) | [AutoTapPro-Android-v1.0.1-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.1/AutoTapPro-Android-v1.0.1-debug.apk) | Debug-key signed, for troubleshooting |
 
-- All assets, release notes and SHA-256 checksums are in the [v1.0.0 release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.0).
+- All assets, release notes and SHA-256 checksums are in the [v1.0.1 release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.1).
 - Allow "install unknown apps" in system settings before installing; grant overlay, accessibility and battery whitelist on first launch.
 
 ---
@@ -50,8 +50,8 @@
 ## 🎨 UI
 
 - **Main screen**: light card layout with three permission cards (overlay / accessibility / battery whitelist), each showing granted/not-granted and opening the system settings; below: channel status, run state, point count, profile list (load/delete), save / save-as.
-- **Floating control bar**: semi-transparent dark slim bar on the screen edge, collapsible to a knob; expanded row: start/pause `▶`, record `● / ■`, stop `⏹`, add `＋`, delete `－`, close `✕`.
-- **Point bubbles**: hollow circles with green stroke and light number; during run/pause they are non-touchable so gestures pass through to the target app; idle they are draggable and long-press editable.
+- **Floating control bar**: semi-transparent dark slim bar as wide as a single button, collapsible to a knob; expanded row: start/pause `▶`, record `● / ■`, stop `⏹`, point visibility `◉ / ○`, add `＋`, delete `－`, close `✕`. Collapsed: tap starts/pauses, long-press expands; after drag it snaps to the nearest screen edge (toggleable on the main screen).
+- **Point bubbles**: hollow circles with green stroke and light number; they can be hidden all at once so markers do not block manual operation. During run/pause they are non-touchable so gestures pass through to the target app; idle they are draggable and long-press editable.
 - **Parameter dialog**: edit action type, start/end coordinates, delay, touch duration, repeat count, random offset and random delay.
 - **App icon**: white background, green dashed sight ring with a crosshair.
 
