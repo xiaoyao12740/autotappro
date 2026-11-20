@@ -203,6 +203,7 @@ object ClickerCoordinator {
             _profile.update { it.copy(channelMode = mode) }
             // 模式切换后旧生效通道失效，先置未就绪，待下次开始运行重新解析。
             _activeChannel.update { ChannelKind.NONE }
+            persistActiveAsync()
         }
     }
 
