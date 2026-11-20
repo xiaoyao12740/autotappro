@@ -213,11 +213,12 @@ class ClickerFloatingService : Service() {
         try {
             panel = SidePanelView(this, screenW, screenH, panelCallbacks)
             panel?.applyInitial(ClickerCoordinator.profile.value.panelCollapsed)
+            panel?.setPointsVisible(ClickerCoordinator.profile.value.pointsVisible)
             val params = baseParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP or Gravity.START
-            ).apply { x = 24; y = 240 }
+            ).apply { x = 8; y = 240 }
             addManaged(panel!!, params)
             panelParams = params
             captureFrameOffset(panel!!, params)
@@ -255,7 +256,10 @@ class ClickerFloatingService : Service() {
 
     private fun attachObservers() {
         profileJob = scope.launch {
-            ClickerCoordinator.profile.collectLatest { rebuildBubbles() }
+            ClickerCoordinator.profile.collectLatest { p ->
+                panel?.setPointsVisible(p.pointsVisible)
+                rebuildBubbles()
+            }
         }
         stateJob = scope.launch {
             ClickerCoordinator.runState.collectLatest { state ->
@@ -380,8 +384,9 @@ class ClickerFloatingService : Service() {
             stopSelf()
         }
 
-        override fun onLongPressClose() {
-            showConfirmClose()
+        override fun onTogglePointsVisible() {
+            val cur = ClickerCoordinator.profile.value.pointsVisible
+            ClickerCoordinator.setPointsVisible(!cur)
         }
 
         override fun onPanelMoved(x: Int, y: Int) {
@@ -389,6 +394,10 @@ class ClickerFloatingService : Service() {
                 p.x = x; p.y = y
                 panel?.let { updateManaged(it, p) }
             }
+        }
+
+        override fun onPanelDragEnded() {
+            snapPanelToEdge()
         }
 
         override fun onPanelLayoutChanged() {
@@ -405,47 +414,22 @@ class ClickerFloatingService : Service() {
         }
     }
 
-    private fun showConfirmClose() {
-        val density = resources.displayMetrics.density
-        val box = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setBackgroundResource(com.aitap.autotappro.R.drawable.bg_menu_sheet)
-            val pad = (18 * density).toInt()
-            setPadding(pad, pad, pad, pad)
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                (260 * density).toInt(), android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
+    /**
+     * 拖拽松手后按开关吸附到最近的左/右边缘；未开启吸附则保持松手位置。
+     * 仅贴边横向归位，纵向位置不变。
+     */
+    private fun snapPanelToEdge() {
+        val p = panel ?: return
+        val params = panelParams ?: return
+        if (!ClickerCoordinator.profile.value.snapToEdge) return
+        val w = p.panelWidthPx()
+        val center = params.x + w / 2f
+        val targetX = if (center < screenW / 2f) 0 else (screenW - w).coerceAtLeast(0)
+        if (params.x != targetX) {
+            params.x = targetX
+            p.setPanelPosition(params.x, params.y)
+            updateManaged(p, params)
         }
-        val title = android.widget.TextView(this).apply {
-            text = "关闭悬浮面板？"
-            setTextColor(android.graphics.Color.WHITE)
-            textSize = 16f
-        }
-        val row = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.END
-        }
-        val cancel = android.widget.TextView(this).apply {
-            text = "取消"; setTextColor(android.graphics.Color.argb(200, 255, 255, 255))
-            textSize = 15f; gravity = android.view.Gravity.CENTER
-            val lp = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, (40 * density).toInt())
-            lp.marginStart = (16 * density).toInt(); layoutParams = lp
-        }
-        val ok = android.widget.TextView(this).apply {
-            text = "关闭"; setTextColor(android.graphics.Color.WHITE)
-            textSize = 15f; gravity = android.view.Gravity.CENTER
-            val lp = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, (40 * density).toInt())
-            lp.marginStart = (16 * density).toInt(); layoutParams = lp
-        }
-        row.addView(cancel); row.addView(ok)
-        box.addView(title); box.addView(row)
-
-        val holder = arrayOfNulls<FloatingDialogHost.DialogHandle>(1)
-        cancel.setOnClickListener { holder[0]?.dismiss() }
-        ok.setOnClickListener { holder[0]?.dismiss(); stopSelf() }
-        holder[0] = FloatingDialogHost.show(this, wm, box) { }
     }
 
     // ---- 点位气泡 ----
@@ -468,6 +452,9 @@ class ClickerFloatingService : Service() {
             renderTentative()
             return
         }
+
+        // 点位显隐开关关闭：不渲染气泡与连线，避免手操时被标记遮挡。
+        if (!ClickerCoordinator.profile.value.pointsVisible) return
 
         val points = ClickerCoordinator.profile.value.points
         points.forEach { point ->
