@@ -70,46 +70,71 @@
                 android:text="去授权" />
         </LinearLayout>
 
-        <!-- 权限卡片 2：无障碍 -->
+        <!-- 权限卡片 2：无障碍（手动授权 / Root 一键开启，两条独立入口） -->
         <LinearLayout
             android:id="@+id/card_a11y"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
+            android:orientation="vertical"
             android:background="@drawable/bg_card"
             android:padding="16dp"
             android:layout_marginBottom="12dp">
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="无障碍服务"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/a11y_status"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="未开启"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp"
-                    android:paddingTop="4dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="无障碍服务"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/a11y_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="未开启"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:paddingTop="4dp" />
+                </LinearLayout>
             </LinearLayout>
 
-            <Button
-                android:id="@+id/btn_a11y"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="去开启" />
+                android:orientation="horizontal"
+                android:paddingTop="12dp">
+
+                <Button
+                    android:id="@+id/btn_a11y_manual"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="手动去开启" />
+
+                <View
+                    android:layout_width="12dp"
+                    android:layout_height="wrap_content" />
+
+                <Button
+                    android:id="@+id/btn_a11y_root"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Root 一键开启" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- 权限卡片 3：电池优化 -->
@@ -154,46 +179,82 @@
                 android:text="去设置" />
         </LinearLayout>
 
-        <!-- 回放通道 -->
+        <!-- 回放通道（自动 / 强制无障碍 / Root 直连，三条独立入口） -->
         <LinearLayout
             android:id="@+id/card_channel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
+            android:orientation="vertical"
             android:background="@drawable/bg_card"
             android:padding="16dp"
             android:layout_marginBottom="16dp">
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="回放通道"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/channel_status"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="未就绪"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp"
-                    android:paddingTop="4dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="回放通道"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/channel_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="未就绪"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:paddingTop="4dp" />
+                </LinearLayout>
             </LinearLayout>
 
-            <Button
-                android:id="@+id/btn_channel"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="切换" />
+                android:orientation="horizontal"
+                android:paddingTop="12dp">
+
+                <Button
+                    android:id="@+id/btn_mode_auto"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="自动" />
+
+                <View
+                    android:layout_width="10dp"
+                    android:layout_height="wrap_content" />
+
+                <Button
+                    android:id="@+id/btn_mode_a11y"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="无障碍" />
+
+                <View
+                    android:layout_width="10dp"
+                    android:layout_height="wrap_content" />
+
+                <Button
+                    android:id="@+id/btn_mode_root"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Root 直连" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- 悬浮面板设置 -->
