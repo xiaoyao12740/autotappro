@@ -15,8 +15,10 @@ import kotlin.math.roundToInt
 
 /**
  * 侧边窄条面板。
- * 展开态：竖排按钮 开始/暂停、＋添加、－删除、✕关闭；可整条拖动。
- * 折叠态：单个小圆钮，单击展开/收起；拖动移动；长按弹关闭确认。
+ * 展开态：竖排按钮 开始/暂停、录制、停止、点位显隐、＋添加、－删除、✕关闭；可整条拖动。
+ * 折叠态：单个小圆钮，单击 开始/暂停，长按展开面板；拖动移动。
+ *
+ * 面板宽度与按钮同宽：背景仅作遮挡，不接收背景点击。
  */
 class SidePanelView(
     context: Context,
@@ -32,8 +34,9 @@ class SidePanelView(
         fun onAddPoint()
         fun onRemoveSelected()
         fun onClosePanel()
-        fun onLongPressClose()
+        fun onTogglePointsVisible()
         fun onPanelMoved(x: Int, y: Int)
+        fun onPanelDragEnded()
         fun onPanelLayoutChanged()
         fun onToggleCollapseKnob()
         fun onPanelCollapsedChanged(collapsed: Boolean)
@@ -44,14 +47,15 @@ class SidePanelView(
     private var panelX = 24
     private var panelY = 240
 
-    private val btnSize = (40 * density).roundToInt()
-    private val knobSize = (40 * density).roundToInt()
-    private val gap = (6 * density).roundToInt()
-    private val panelWidth = (46 * density).roundToInt()
+    private val btnSize = (32 * density).roundToInt()
+    private val knobSize = (32 * density).roundToInt()
+    private val gap = (3 * density).roundToInt()
+    private val panelWidth = btnSize
 
     private var barBtn: Button? = null
     private var recordBtn: Button? = null
     private var stopBtn: Button? = null
+    private var pointsBtn: Button? = null
     private var addBtn: Button? = null
     private var removeBtn: Button? = null
     private var closeBtn: Button? = null
@@ -74,8 +78,8 @@ class SidePanelView(
 
     init {
         setBackgroundResource(com.aitap.autotappro.R.drawable.bg_panel)
-        val pad = (10 * density).roundToInt()
-        setPadding(pad, pad, pad, pad)
+        val vPad = (4 * density).roundToInt()
+        setPadding(0, vPad, 0, vPad)
         buildExpandedButtons()
         buildKnob()
     }
@@ -88,16 +92,19 @@ class SidePanelView(
             text = "未就绪"
             gravity = Gravity.CENTER
             setTextColor(Color.parseColor("#D5DCE4"))
-            textSize = 10f
+            textSize = 9f
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
-            layoutParams = frameLp(android.view.ViewGroup.LayoutParams.MATCH_PARENT, (32 * density).roundToInt(), Gravity.CENTER_HORIZONTAL)
+            layoutParams = frameLp(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, (24 * density).roundToInt(), Gravity.CENTER_HORIZONTAL
+            )
         }
         addView(channelLabel)
-        expandKnob = makeKnob("⟨", 32)
+        expandKnob = makeKnob("⟨")
         barBtn = makeBtn("▶", "开始/暂停")
         recordBtn = makeBtn("●", "录制")
         stopBtn = makeBtn("⏹", "停止")
+        pointsBtn = makeBtn("◉", "隐藏/显示点位")
         addBtn = makeBtn("＋", "添加点位")
         removeBtn = makeBtn("－", "删除选中")
         closeBtn = makeBtn("✕", "关闭")
@@ -105,6 +112,7 @@ class SidePanelView(
         barBtn?.setOnClickListener { callbacks.onTogglePlayPause() }
         recordBtn?.setOnClickListener { callbacks.onToggleRecord() }
         stopBtn?.setOnClickListener { callbacks.onEmergencyStop() }
+        pointsBtn?.setOnClickListener { callbacks.onTogglePointsVisible() }
         addBtn?.setOnClickListener { callbacks.onAddPoint() }
         removeBtn?.setOnClickListener { callbacks.onRemoveSelected() }
         closeBtn?.setOnClickListener { callbacks.onClosePanel() }
@@ -115,10 +123,9 @@ class SidePanelView(
             text = "☰"
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            textSize = 18f
+            textSize = 14f
             layoutParams = frameLp(knobSize, knobSize, Gravity.CENTER)
             background = context.getDrawable(com.aitap.autotappro.R.drawable.bg_bubble)
-            setOnClickListener { callbacks.onToggleCollapseKnob() }
         }
     }
 
@@ -126,9 +133,11 @@ class SidePanelView(
         val b = Button(context).apply {
             this.text = text
             contentDescription = desc
-            textSize = 16f
+            textSize = 13f
             setTextColor(Color.WHITE)
             background = null
+            minimumWidth = 0
+            minimumHeight = 0
             layoutParams = frameLp(btnSize, btnSize, Gravity.CENTER_HORIZONTAL)
             // 触摸事件由根布局 dispatchTouchEvent 统一判定点击/拖动；
             // 子钮保持默认 clickable 以参与 measure/layout，不在此装 OnTouchListener。
@@ -137,16 +146,14 @@ class SidePanelView(
         return b
     }
 
-    private fun makeKnob(text: String, sizeDp: Int): TextView {
-        val size = (sizeDp * density).roundToInt()
+    private fun makeKnob(text: String): TextView {
         val t = TextView(context).apply {
             this.text = text
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            textSize = 14f
-            layoutParams = frameLp(size, size, Gravity.CENTER_HORIZONTAL)
+            textSize = 13f
+            layoutParams = frameLp(btnSize, btnSize, Gravity.CENTER_HORIZONTAL)
             background = null
-            setOnClickListener { callbacks.onToggleCollapseKnob() }
         }
         addView(t)
         return t
@@ -182,7 +189,7 @@ class SidePanelView(
         )
         // 录制态保护：禁用添加/删除/关闭/折叠展开等编辑钮，避免停止录制的触摸落点偏差
         // 被误当成添加点；仅保留停止录制钮与急停钮可点。
-        val editControls = listOfNotNull(addBtn, removeBtn, closeBtn, expandKnob)
+        val editControls = listOfNotNull(addBtn, removeBtn, closeBtn, expandKnob, pointsBtn)
         editControls.forEach { v ->
             v.isEnabled = !recording
             v.alpha = if (recording) 0.35f else 1f
@@ -196,9 +203,18 @@ class SidePanelView(
             RunState.Paused -> "▶"
             else -> "▶"
         }
-        // 展开态：活动状态才显示独立急停钮；折叠态：运行/暂停时圆钮变 ⏹。
+        // 展开态：活动状态才显示独立急停钮；折叠态圆钮跟随 开始/暂停 图标。
         stopBtn?.visibility = if (active) VISIBLE else GONE
-        collapseKnob?.text = if (active) "⏹" else "☰"
+        collapseKnob?.text = when (state) {
+            RunState.Running -> "⏸"
+            RunState.Paused -> "▶"
+            else -> "☰"
+        }
+    }
+
+    /** 点位显隐按钮图标：显示中 ◉，已隐藏 ○。 */
+    fun setPointsVisible(visible: Boolean) {
+        pointsBtn?.text = if (visible) "◉" else "○"
     }
 
     fun setPanelPosition(x: Int, y: Int) {
@@ -206,6 +222,8 @@ class SidePanelView(
     }
 
     fun panelPosition(): Pair<Int, Int> = panelX to panelY
+
+    fun panelWidthPx(): Int = width.coerceAtLeast(btnSize)
 
     fun isCollapsed(): Boolean = collapsed
 
@@ -219,6 +237,7 @@ class SidePanelView(
         barBtn?.visibility = if (collapse) GONE else VISIBLE
         recordBtn?.visibility = if (collapse) GONE else VISIBLE
         stopBtn?.visibility = if (collapse || !active) GONE else VISIBLE
+        pointsBtn?.visibility = if (collapse) GONE else VISIBLE
         addBtn?.visibility = if (collapse) GONE else VISIBLE
         removeBtn?.visibility = if (collapse) GONE else VISIBLE
         closeBtn?.visibility = if (collapse) GONE else VISIBLE
@@ -236,7 +255,7 @@ class SidePanelView(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        // 展开态：宽度取按钮宽 + 左右内边距；高度按按钮/钮数量纵向堆叠。
+        // 宽度固定为按钮宽；高度按可见按钮/标签数量纵向堆叠。
         val padH = paddingLeft + paddingRight
         val padV = paddingTop + paddingBottom
         val visible = listOfNotNull(
@@ -245,6 +264,7 @@ class SidePanelView(
             barBtn?.takeIf { !collapsed },
             recordBtn?.takeIf { !collapsed },
             stopBtn?.takeIf { !collapsed && active },
+            pointsBtn?.takeIf { !collapsed },
             addBtn?.takeIf { !collapsed },
             removeBtn?.takeIf { !collapsed },
             closeBtn?.takeIf { !collapsed },
@@ -270,6 +290,7 @@ class SidePanelView(
             barBtn?.takeIf { !collapsed },
             recordBtn?.takeIf { !collapsed },
             stopBtn?.takeIf { !collapsed && active },
+            pointsBtn?.takeIf { !collapsed },
             addBtn?.takeIf { !collapsed },
             removeBtn?.takeIf { !collapsed },
             closeBtn?.takeIf { !collapsed },
@@ -288,10 +309,6 @@ class SidePanelView(
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         // 窄条整条统一处理，避免子 Button 的点击消费打断 DOWN/UP 链路。
-        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-            android.util.Log.i("TapPanel", "dispatchTouch DOWN raw=${ev.rawX.roundToInt()},${ev.rawY.roundToInt()} " +
-                "loc=${IntArray(2).also { getLocationOnScreen(it) }.contentToString()} size=${width}x$height")
-        }
         handleTouch(ev)
         return true
     }
@@ -306,9 +323,10 @@ class SidePanelView(
                 startX = panelX; startY = panelY
                 moved = false
                 longPressPending = true
-                if (collapsed && !active) {
+                // 折叠态：长按展开面板（单击留给 开始/暂停）。
+                if (collapsed) {
                     postDelayed({
-                        if (longPressPending && !moved) callbacks.onLongPressClose()
+                        if (longPressPending && !moved) callbacks.onToggleCollapseKnob()
                     }, 500)
                 }
             }
@@ -326,27 +344,21 @@ class SidePanelView(
             MotionEvent.ACTION_UP -> {
                 longPressPending = false
                 if (!moved) dispatchTapAt(e.rawX, e.rawY)
+                else callbacks.onPanelDragEnded()
             }
             MotionEvent.ACTION_CANCEL -> longPressPending = false
         }
         return true
     }
 
-    /** 短按命中：先交给子 View 自己的 OnClickListener；折叠圆钮/展开钮在折叠切换回调里处理。 */
+    /** 短按命中：先交给子 View 自己的 OnClickListener；折叠圆钮单击为 开始/暂停。 */
     private fun dispatchTapAt(rawX: Float, rawY: Float) {
         val v = findChildAt(rawX, rawY)
-        if (v == null) {
-            android.util.Log.w("TapPanel", "dispatchTapAt 未命中任何子 View raw=${rawX.roundToInt()},${rawY.roundToInt()}")
-            return
-        }
-        if (!v.isEnabled) {
-            android.util.Log.w("TapPanel", "dispatchTapAt 命中禁用钮 ${v.contentDescription ?: v.javaClass.simpleName}，忽略")
-            return
-        }
-        android.util.Log.i("TapPanel", "dispatchTapAt 命中 ${v.contentDescription ?: v.javaClass.simpleName}")
+        if (v == null) return
+        if (!v.isEnabled) return
         if (v === collapseKnob) {
-            // 折叠态：运行/暂停时圆钮是 ⏹ 急停，空闲时才是展开钮。
-            if (active) callbacks.onEmergencyStop() else callbacks.onToggleCollapseKnob()
+            // 折叠态单击：开始/暂停（不再展开）；展开由长按触发。
+            callbacks.onTogglePlayPause()
             return
         }
         if (v === expandKnob) {
@@ -364,8 +376,6 @@ class SidePanelView(
             if (child.visibility != VISIBLE) continue
             child.getLocationOnScreen(loc)
             val r = android.graphics.Rect(loc[0], loc[1], loc[0] + child.width, loc[1] + child.height)
-            android.util.Log.i("TapPanel", "  child[${child.contentDescription ?: child.javaClass.simpleName}] " +
-                "rect=($loc[0],$loc[1])-${loc[0] + child.width},${loc[1] + child.height}")
             if (hit == null && r.contains(rawX.toInt(), rawY.toInt())) hit = child
         }
         return hit
