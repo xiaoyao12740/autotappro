@@ -19,10 +19,10 @@
 
 | 你的设备 | 推荐下载 | 说明 |
 |---|---|---|
-| 📱 Android 9+（推荐） | [AutoTapPro-Android-v1.0.0-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.0/AutoTapPro-Android-v1.0.0-release.apk) | 正式签名包，日常使用 |
-| 📱 Android 9+（调试） | [AutoTapPro-Android-v1.0.0-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.0/AutoTapPro-Android-v1.0.0-debug.apk) | 调试密钥签名，供排障对比 |
+| 📱 Android 9+（推荐） | [AutoTapPro-Android-v1.0.1-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.1/AutoTapPro-Android-v1.0.1-release.apk) | 正式签名包，日常使用 |
+| 📱 Android 9+（调试） | [AutoTapPro-Android-v1.0.1-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.1/AutoTapPro-Android-v1.0.1-debug.apk) | 调试密钥签名，供排障对比 |
 
-- 全部资产、版本说明与 SHA-256 校验值见 [v1.0.0 Release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.0)。
+- 全部资产、版本说明与 SHA-256 校验值见 [v1.0.1 Release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.1)。
 - 安装前在系统设置允许“未知来源 / 安装未知应用”；首次使用依次授予悬浮窗、无障碍、电池优化白名单。
 
 ---
@@ -54,8 +54,8 @@
 ## 🎨 界面样式
 
 - **主界面**：浅色卡片式布局，三张权限状态卡（悬浮窗 / 无障碍 / 电池优化白名单），分别显示已授予 / 未授予并跳转系统设置；下方为通道状态、运行状态、点位计数，以及配置列表（载入 / 删除）、保存 / 另存为入口。
-- **悬浮控制条**：屏幕侧边半透明深色窄条，可折叠为圆钮；展开后竖排按钮：开始 / 暂停 `▶`、录制 `● / ■`、停止 `⏹`、添加 `＋`、删除 `－`、关闭 `✕`。
-- **点位气泡**：屏幕上每个点位为镂空圆形标记，绿色描边 + 浅色编号；运行 / 暂停态气泡置为不可触摸，让回放手势穿透到下层目标界面；空闲态恢复可拖动、长按编辑。
+- **悬浮控制条**：屏幕侧边半透明深色窄条，宽度与按钮同宽，可折叠为小圆钮；展开后竖排按钮：开始 / 暂停 `▶`、录制 `● / ■`、停止 `⏹`、点位显隐 `◉ / ○`、添加 `＋`、删除 `－`、关闭 `✕`。折叠态单击开始 / 暂停，长按展开面板；拖拽松手后可自动吸附到屏幕侧边（主界面开关控制）。
+- **点位气泡**：屏幕上每个点位为镂空圆形标记，绿色描边 + 浅色编号；可一键隐藏全部点位气泡，手操时不被标记遮挡。运行 / 暂停态气泡置为不可触摸，让回放手势穿透到下层目标界面；空闲态恢复可拖动、长按编辑。
 - **参数弹窗**：点击点位气泡弹出参数面板，可编辑动作类型、起止坐标、延迟、触摸时长、重复次数、随机偏移与随机延迟。
 - **应用图标**：白底绿色虚线瞄准镜圆环 + 十字准星。
 
