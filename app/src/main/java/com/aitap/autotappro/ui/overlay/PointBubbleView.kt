@@ -34,7 +34,7 @@ class PointBubbleView(
 ) : FrameLayout(context) {
 
     companion object {
-        const val BUBBLE_DP = 56
+        const val BUBBLE_DP = 40
     }
 
     private val density = resources.displayMetrics.density
@@ -53,7 +53,7 @@ class PointBubbleView(
         label = TextView(context).apply {
             gravity = Gravity.CENTER
             setTextColor(Color.parseColor("#FFB7E8CB"))
-            textSize = 15f
+            textSize = 12f
             text = if (isEndpoint) "②${point.id}" else "${point.id}"
             isLongClickable = false
         }
@@ -133,9 +133,9 @@ class PointBubbleView(
 class SwipeLineView(context: Context) : View(context) {
     private val dashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(180, 255, 255, 255)
-        strokeWidth = 3f * resources.displayMetrics.density
+        strokeWidth = 2.5f * resources.displayMetrics.density
         style = Paint.Style.STROKE
-        pathEffect = DashPathEffect(floatArrayOf(12f, 10f), 0f)
+        pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f)
     }
 
     var fromX: Float = 0f; var fromY: Float = 0f
