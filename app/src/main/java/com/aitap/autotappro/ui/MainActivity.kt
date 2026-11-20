@@ -11,6 +11,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
 import com.aitap.autotappro.R
 import com.aitap.autotappro.channel.RootHelper
 import com.aitap.autotappro.core.ClickerCoordinator
@@ -38,6 +39,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pointCount: TextView
     private lateinit var profileList: LinearLayout
     private lateinit var channelStatus: TextView
+    private lateinit var switchSnap: SwitchCompat
+    private lateinit var switchPoints: SwitchCompat
+
+    /** 编程回刷勾选时屏蔽监听回环。 */
+    private var switchGuard = false
 
     private val uiScope = CoroutineScope(Dispatchers.Main)
 
@@ -61,6 +67,15 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_save).setOnClickListener { saveActive() }
         findViewById<Button>(R.id.btn_save_as).setOnClickListener { saveAs() }
         findViewById<Button>(R.id.btn_channel).setOnClickListener { pickChannel() }
+
+        switchSnap = findViewById(R.id.switch_snap)
+        switchPoints = findViewById(R.id.switch_points)
+        switchSnap.setOnCheckedChangeListener { _, checked ->
+            if (!switchGuard) ClickerCoordinator.setSnapToEdge(checked)
+        }
+        switchPoints.setOnCheckedChangeListener { _, checked ->
+            if (!switchGuard) ClickerCoordinator.setPointsVisible(checked)
+        }
 
         uiScope.launch {
             ClickerCoordinator.profile.collect { refreshProfileInfo() }
@@ -190,6 +205,10 @@ class MainActivity : AppCompatActivity() {
         val p = ClickerCoordinator.profile.value
         profileName.text = p.name
         pointCount.text = "点位：${p.points.size} / 100"
+        switchGuard = true
+        switchSnap.isChecked = p.snapToEdge
+        switchPoints.isChecked = p.pointsVisible
+        switchGuard = false
     }
 
     /** 重新读取私有目录存档并渲染列表；保存 / 另存为 / 删除 / 返回界面后调用。 */
