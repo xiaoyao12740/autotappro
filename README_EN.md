@@ -17,10 +17,9 @@
 
 | Your device | Download | Notes |
 |---|---|---|
-| 📱 Android 9+ (recommended) | [AutoTapPro-Android-v1.0.1-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.1/AutoTapPro-Android-v1.0.1-release.apk) | Release-signed build for daily use |
-| 📱 Android 9+ (debug) | [AutoTapPro-Android-v1.0.1-debug.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.1/AutoTapPro-Android-v1.0.1-debug.apk) | Debug-key signed, for troubleshooting |
+| 📱 Android 9+ (recommended) | [AutoTapPro-Android-v1.0.2-release.apk](https://github.com/xiaoyao12740/autotappro/releases/download/v1.0.2/AutoTapPro-Android-v1.0.2-release.apk) | Release-signed build for daily use |
 
-- All assets, release notes and SHA-256 checksums are in the [v1.0.1 release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.1).
+- All assets, release notes and SHA-256 checksums are in the [v1.0.2 release](https://github.com/xiaoyao12740/autotappro/releases/tag/v1.0.2).
 - Allow "install unknown apps" in system settings before installing; grant overlay, accessibility and battery whitelist on first launch.
 
 ---
@@ -34,10 +33,11 @@
 - Multi-touch is paired per finger by pointer ID: two fingers pressed at the same time produce two separate points instead of a cross-screen swipe.
 
 ### Replay
-- **Two channels**, persisted with the profile:
+- **Three channel modes**, persisted with the profile:
   - Accessibility: `AccessibilityService.dispatchGesture()`, no Root required, default channel;
   - Root shell: `su -c input tap / swipe`, optional on rooted devices;
-  - Auto mode prefers accessibility and falls back to Root; forced modes fail explicitly instead of silently degrading.
+  - Auto mode prefers accessibility and falls back to Root; forced accessibility / forced Root fail explicitly instead of silently degrading.
+- **Three independent authorization paths**: jump to system accessibility settings to grant manually; bind the app into accessibility via Root in one tap; replay directly through Root without accessibility.
 - **Once / loop** run modes; pause, resume, and a standalone floating stop button.
 - Naturalization toggles (all off by default): random delay, random coordinate offset, swipe duration jitter; when off, the original coordinates and timing are replayed exactly.
 - Profiles can be saved, saved-as, loaded and deleted; stored as JSON in the app's private directory.
@@ -50,7 +50,7 @@
 ## 🎨 UI
 
 - **Main screen**: light card layout with three permission cards (overlay / accessibility / battery whitelist), each showing granted/not-granted and opening the system settings; below: channel status, run state, point count, profile list (load/delete), save / save-as.
-- **Floating control bar**: semi-transparent dark slim bar as wide as a single button, collapsible to a knob; expanded row: start/pause `▶`, record `● / ■`, stop `⏹`, point visibility `◉ / ○`, add `＋`, delete `－`, close `✕`. Collapsed: tap starts/pauses, long-press expands; after drag it snaps to the nearest screen edge (toggleable on the main screen).
+- **Floating control bar**: semi-transparent dark slim bar, collapsible to a knob; buttons are full circles with centered icons, flush to the edge without clipping. Expanded row: start/pause `▶`, record `● / ■`, stop `⏹`, point visibility (line-drawn eye: open eye, no slash = visible; closed eye with slash = hidden), add `＋`, delete `－`, close `✕`. Collapsed: tap starts/pauses, long-press expands; after drag it snaps to the nearest screen edge (toggleable on the main screen).
 - **Point bubbles**: hollow circles with green stroke and light number; they can be hidden all at once so markers do not block manual operation. During run/pause they are non-touchable so gestures pass through to the target app; idle they are draggable and long-press editable.
 - **Parameter dialog**: edit action type, start/end coordinates, delay, touch duration, repeat count, random offset and random delay.
 - **App icon**: white background, green dashed sight ring with a crosshair.
