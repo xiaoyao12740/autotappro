@@ -13,9 +13,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import com.aitap.autotappro.R
+import com.aitap.autotappro.channel.ChannelResolver
 import com.aitap.autotappro.channel.RootHelper
 import com.aitap.autotappro.core.ClickerCoordinator
 import com.aitap.autotappro.core.RunState
+import com.aitap.autotappro.model.ChannelKind
 import com.aitap.autotappro.model.ChannelMode
 import com.aitap.autotappro.model.ClickProfile
 import com.aitap.autotappro.model.channelLabel
@@ -24,6 +26,7 @@ import com.aitap.autotappro.service.TapAccessibilityService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 主界面：三张权限卡片（悬浮窗 / 无障碍 / 电池优化）状态与跳转，
@@ -41,6 +44,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var channelStatus: TextView
     private lateinit var switchSnap: SwitchCompat
     private lateinit var switchPoints: SwitchCompat
+    private lateinit var btnModeAuto: Button
+    private lateinit var btnModeA11y: Button
+    private lateinit var btnModeRoot: Button
 
     /** 编程回刷勾选时屏蔽监听回环。 */
     private var switchGuard = false
@@ -61,12 +67,19 @@ class MainActivity : AppCompatActivity() {
         channelStatus = findViewById(R.id.channel_status)
 
         findViewById<Button>(R.id.btn_overlay).setOnClickListener { openOverlaySettings() }
-        findViewById<Button>(R.id.btn_a11y).setOnClickListener { openAccessibilitySettings() }
+        findViewById<Button>(R.id.btn_a11y_manual).setOnClickListener { openAccessibilitySettings() }
+        findViewById<Button>(R.id.btn_a11y_root).setOnClickListener { enableA11yViaRoot() }
         findViewById<Button>(R.id.btn_battery).setOnClickListener { openBatterySettings() }
         findViewById<Button>(R.id.btn_open_panel).setOnClickListener { openPanel() }
         findViewById<Button>(R.id.btn_save).setOnClickListener { saveActive() }
         findViewById<Button>(R.id.btn_save_as).setOnClickListener { saveAs() }
-        findViewById<Button>(R.id.btn_channel).setOnClickListener { pickChannel() }
+
+        btnModeAuto = findViewById(R.id.btn_mode_auto)
+        btnModeA11y = findViewById(R.id.btn_mode_a11y)
+        btnModeRoot = findViewById(R.id.btn_mode_root)
+        btnModeAuto.setOnClickListener { selectChannelMode(ChannelMode.AUTO) }
+        btnModeA11y.setOnClickListener { selectChannelMode(ChannelMode.FORCE_ACCESSIBILITY) }
+        btnModeRoot.setOnClickListener { selectChannelMode(ChannelMode.FORCE_ROOT) }
 
         switchSnap = findViewById(R.id.switch_snap)
         switchPoints = findViewById(R.id.switch_points)
@@ -121,11 +134,24 @@ class MainActivity : AppCompatActivity() {
         ))
     }
 
+    /** 手动入口：只跳系统无障碍设置，由用户自己在列表里开启。 */
     private fun openAccessibilitySettings() {
-        // 先尝试 Root 辅助写入（读-合并-写，不覆盖其他服务）；失败则跳系统设置手动开。
-        val ok = RootHelper.enableAccessibilityViaRoot(this)
-        if (!ok) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        else Toast.makeText(this, "已通过 Root 开启无障碍，请返回确认", Toast.LENGTH_LONG).show()
+        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+    }
+
+    /** Root 入口：读-合并-写系统启用列表并打开总开关；IO 线程执行，回执回主线程上屏。 */
+    private fun enableA11yViaRoot() {
+        Toast.makeText(this, "正在通过 Root 开启无障碍…", Toast.LENGTH_SHORT).show()
+        uiScope.launch {
+            val ok = withContext(Dispatchers.IO) { RootHelper.enableAccessibilityViaRoot(this@MainActivity) }
+            if (ok) {
+                Toast.makeText(this@MainActivity, "已通过 Root 开启无障碍，请返回确认", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this@MainActivity, "Root 开启失败，请改用「手动去开启」", Toast.LENGTH_LONG).show()
+            }
+            refreshPermissions()
+            refreshChannelStatus()
+        }
     }
 
     private fun openBatterySettings() {
@@ -148,26 +174,30 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "悬浮面板已打开", Toast.LENGTH_SHORT).show()
     }
 
-    private fun pickChannel() {
-        val modes = ChannelMode.values()
-        val labels = modes.map { it.displayName }.toTypedArray()
-        val current = ClickerCoordinator.channelMode()
-        AlertDialog.Builder(this)
-            .setTitle("选择回放通道")
-            .setSingleChoiceItems(labels, modes.indexOf(current)) { dialog, which ->
-                val picked = modes[which]
-                ClickerCoordinator.setChannelMode(picked)
-                Toast.makeText(this, "已切换：${picked.displayName}（下次开始生效）", Toast.LENGTH_LONG).show()
-                dialog.dismiss()
-            }
-            .setNegativeButton("取消", null)
-            .show()
+    private fun selectChannelMode(mode: ChannelMode) {
+        ClickerCoordinator.setChannelMode(mode)
+        Toast.makeText(this, "已切换：${mode.displayName}", Toast.LENGTH_LONG).show()
+        refreshModeButtons()
+        refreshChannelStatus()
+    }
+
+    /** 当前选中模式按钮高亮（不透明），未选中置半透明。 */
+    private fun refreshModeButtons() {
+        val mode = ClickerCoordinator.channelMode()
+        btnModeAuto.alpha = if (mode == ChannelMode.AUTO) 1f else 0.45f
+        btnModeA11y.alpha = if (mode == ChannelMode.FORCE_ACCESSIBILITY) 1f else 0.45f
+        btnModeRoot.alpha = if (mode == ChannelMode.FORCE_ROOT) 1f else 0.45f
     }
 
     private fun refreshChannelStatus() {
         val mode = ClickerCoordinator.channelMode()
-        val kind = ClickerCoordinator.activeChannel.value
-        channelStatus.text = channelLabel(mode, kind)
+        refreshModeButtons()
+        uiScope.launch {
+            // 进入界面即按当前模式探测一次可用性，提前上屏未就绪原因，不必等到点开始。
+            val res = ChannelResolver.resolve(mode)
+            val label = channelLabel(mode, res.kind)
+            channelStatus.text = if (res.kind == ChannelKind.NONE) "$label：${res.reason}" else label
+        }
     }
 
     private fun saveActive() {
