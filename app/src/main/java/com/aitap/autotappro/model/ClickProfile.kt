@@ -22,6 +22,8 @@ data class ClickProfile(
     var clickRandomOffsetPx: Int = 0,
     var randomDelayMs: Long = 0L,
     var panelCollapsed: Boolean = false,
+    var snapToEdge: Boolean = true,
+    var pointsVisible: Boolean = true,
     var channelMode: ChannelMode = ChannelMode.AUTO
 ) {
     val isFull: Boolean get() = points.size >= MAX_POINTS
@@ -43,6 +45,8 @@ data class ClickProfile(
         put("clickRandomOffsetPx", clickRandomOffsetPx)
         put("randomDelayMs", randomDelayMs)
         put("panelCollapsed", panelCollapsed)
+        put("snapToEdge", snapToEdge)
+        put("pointsVisible", pointsVisible)
         put("channelMode", channelMode.name)
         val arr = JSONArray()
         points.forEach { arr.put(it.toJson()) }
@@ -61,6 +65,8 @@ data class ClickProfile(
                 clickRandomOffsetPx = o.optInt("clickRandomOffsetPx", 0),
                 randomDelayMs = o.optLong("randomDelayMs", 0L),
                 panelCollapsed = o.optBoolean("panelCollapsed", false),
+                snapToEdge = o.optBoolean("snapToEdge", true),
+                pointsVisible = o.optBoolean("pointsVisible", true),
                 channelMode = ChannelMode.fromName(o.optString("channelMode"))
             )
             val arr = o.optJSONArray("points") ?: return profile
