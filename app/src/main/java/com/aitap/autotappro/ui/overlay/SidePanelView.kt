@@ -6,19 +6,21 @@ import android.graphics.Color
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
+import com.aitap.autotappro.R
 import com.aitap.autotappro.core.RunState
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
  * 侧边窄条面板。
- * 展开态：竖排按钮 开始/暂停、录制、停止、点位显隐、＋添加、－删除、✕关闭；可整条拖动。
- * 折叠态：单个小圆钮，单击 开始/暂停，长按展开面板；拖动移动。
+ * 展开态：竖排完整圆形按钮 开始/暂停、录制、停止、点位显隐、＋添加、－删除、✕关闭；可整条拖动。
+ * 折叠态：单个圆形钮（☰），单击展开面板；开始/暂停只在展开面板内完成；拖动移动。
  *
- * 面板宽度与按钮同宽：背景仅作遮挡，不接收背景点击。
+ * 点位显隐按钮使用简笔画眼睛图标：睁眼（无斜杠）= 点位可见；闭眼带斜杠 = 点位隐藏。
+ * 每个按钮自身带完整圆形背景、零内边距、图标居中，不被窄条裁切。
  */
 class SidePanelView(
     context: Context,
@@ -47,18 +49,18 @@ class SidePanelView(
     private var panelX = 24
     private var panelY = 240
 
-    private val btnSize = (32 * density).roundToInt()
-    private val knobSize = (32 * density).roundToInt()
-    private val gap = (3 * density).roundToInt()
+    private val btnSize = (36 * density).roundToInt()
+    private val knobSize = (36 * density).roundToInt()
+    private val gap = (5 * density).roundToInt()
     private val panelWidth = btnSize
 
-    private var barBtn: Button? = null
-    private var recordBtn: Button? = null
-    private var stopBtn: Button? = null
-    private var pointsBtn: Button? = null
-    private var addBtn: Button? = null
-    private var removeBtn: Button? = null
-    private var closeBtn: Button? = null
+    private var barBtn: TextView? = null
+    private var recordBtn: TextView? = null
+    private var stopBtn: TextView? = null
+    private var pointsBtn: ImageView? = null
+    private var addBtn: TextView? = null
+    private var removeBtn: TextView? = null
+    private var closeBtn: TextView? = null
     private var collapseKnob: TextView? = null
     private var expandKnob: TextView? = null
     private var channelLabel: TextView? = null
@@ -74,11 +76,9 @@ class SidePanelView(
     private var startX = 0
     private var startY = 0
     private var moved = false
-    private var longPressPending = false
-    private var longPressFired = false
 
     init {
-        setBackgroundResource(com.aitap.autotappro.R.drawable.bg_panel)
+        setBackgroundResource(R.drawable.bg_panel)
         val vPad = (4 * density).roundToInt()
         setPadding(0, vPad, 0, vPad)
         buildExpandedButtons()
@@ -105,7 +105,7 @@ class SidePanelView(
         barBtn = makeBtn("▶", "开始/暂停")
         recordBtn = makeBtn("●", "录制")
         stopBtn = makeBtn("⏹", "停止")
-        pointsBtn = makeBtn("◉", "隐藏/显示点位")
+        pointsBtn = makeIconBtn(R.drawable.ic_eye, "隐藏/显示点位")
         addBtn = makeBtn("＋", "添加点位")
         removeBtn = makeBtn("－", "删除选中")
         closeBtn = makeBtn("✕", "关闭")
@@ -126,25 +126,42 @@ class SidePanelView(
             setTextColor(Color.WHITE)
             textSize = 14f
             layoutParams = frameLp(knobSize, knobSize, Gravity.CENTER)
-            background = context.getDrawable(com.aitap.autotappro.R.drawable.bg_bubble)
+            background = context.getDrawable(R.drawable.bg_panel_btn)
         }
     }
 
-    private fun makeBtn(text: String, desc: String): Button {
-        val b = Button(context).apply {
+    /** 纯文字圆形按钮：零内边距、零最小宽高、居中、完整圆形背景，图标不被窄条裁切。 */
+    private fun makeBtn(text: String, desc: String): TextView {
+        val b = TextView(context).apply {
             this.text = text
             contentDescription = desc
-            textSize = 13f
+            textSize = 15f
             setTextColor(Color.WHITE)
-            background = null
+            setPadding(0, 0, 0, 0)
             minimumWidth = 0
             minimumHeight = 0
+            includeFontPadding = false
+            gravity = Gravity.CENTER
+            background = context.getDrawable(R.drawable.bg_panel_btn)
             layoutParams = frameLp(btnSize, btnSize, Gravity.CENTER_HORIZONTAL)
-            // 触摸事件由根布局 dispatchTouchEvent 统一判定点击/拖动；
-            // 子钮保持默认 clickable 以参与 measure/layout，不在此装 OnTouchListener。
         }
         addView(b)
         return b
+    }
+
+    /** 矢量图标圆形按钮（眼睛显隐）。 */
+    private fun makeIconBtn(resId: Int, desc: String): ImageView {
+        val v = ImageView(context).apply {
+            setImageResource(resId)
+            contentDescription = desc
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            val pad = (5 * density).roundToInt()
+            setPadding(pad, pad, pad, pad)
+            background = context.getDrawable(R.drawable.bg_panel_btn)
+            layoutParams = frameLp(btnSize, btnSize, Gravity.CENTER_HORIZONTAL)
+        }
+        addView(v)
+        return v
     }
 
     private fun makeKnob(text: String): TextView {
@@ -153,8 +170,11 @@ class SidePanelView(
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             textSize = 13f
+            setPadding(0, 0, 0, 0)
+            minimumWidth = 0
+            minimumHeight = 0
             layoutParams = frameLp(btnSize, btnSize, Gravity.CENTER_HORIZONTAL)
-            background = null
+            background = context.getDrawable(R.drawable.bg_panel_btn)
         }
         addView(t)
         return t
@@ -204,18 +224,13 @@ class SidePanelView(
             RunState.Paused -> "▶"
             else -> "▶"
         }
-        // 展开态：活动状态才显示独立急停钮；折叠态圆钮跟随 开始/暂停 图标。
+        // 展开态：活动状态才显示独立急停钮；折叠圆钮固定为展开菜单图标。
         stopBtn?.visibility = if (active) VISIBLE else GONE
-        collapseKnob?.text = when (state) {
-            RunState.Running -> "⏸"
-            RunState.Paused -> "▶"
-            else -> "☰"
-        }
     }
 
-    /** 点位显隐按钮图标：显示中 ◉，已隐藏 ○。 */
+    /** 点位显隐：可见=睁眼；隐藏=闭眼带斜杠。 */
     fun setPointsVisible(visible: Boolean) {
-        pointsBtn?.text = if (visible) "◉" else "○"
+        pointsBtn?.setImageResource(if (visible) R.drawable.ic_eye else R.drawable.ic_eye_off)
     }
 
     fun setPanelPosition(x: Int, y: Int) {
@@ -323,56 +338,35 @@ class SidePanelView(
                 downRawX = e.rawX; downRawY = e.rawY
                 startX = panelX; startY = panelY
                 moved = false
-                longPressPending = true
-                longPressFired = false
-                // 折叠态：长按展开面板（单击留给 开始/暂停）。
-                if (collapsed) {
-                    postDelayed({
-                        if (longPressPending && !moved) {
-                            longPressPending = false
-                            longPressFired = true
-                            callbacks.onToggleCollapseKnob()
-                        }
-                    }, 500)
-                }
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = (e.rawX - downRawX).roundToInt()
                 val dy = (e.rawY - downRawY).roundToInt()
                 if (abs(dx) + abs(dy) > 6) {
                     moved = true
-                    longPressPending = false
                     panelX = (startX + dx).coerceIn(0, screenW - width.coerceAtLeast(1))
                     panelY = (startY + dy).coerceIn(0, screenH - height.coerceAtLeast(1))
                     callbacks.onPanelMoved(panelX, panelY)
                 }
             }
             MotionEvent.ACTION_UP -> {
-                longPressPending = false
-                if (longPressFired) {
-                    // 长按已触发展开：吞掉本次抬起，避免 UP 落点误触刚展开的按钮。
-                    longPressFired = false
-                    return true
-                }
                 if (!moved) dispatchTapAt(e.rawX, e.rawY)
                 else callbacks.onPanelDragEnded()
             }
             MotionEvent.ACTION_CANCEL -> {
-                longPressPending = false
-                longPressFired = false
             }
         }
         return true
     }
 
-    /** 短按命中：先交给子 View 自己的 OnClickListener；折叠圆钮单击为 开始/暂停。 */
+    /** 短按命中：先交给子 View 自己的 OnClickListener；折叠圆钮单击为展开面板。 */
     private fun dispatchTapAt(rawX: Float, rawY: Float) {
         val v = findChildAt(rawX, rawY)
         if (v == null) return
         if (!v.isEnabled) return
         if (v === collapseKnob) {
-            // 折叠态单击：开始/暂停（不再展开）；展开由长按触发。
-            callbacks.onTogglePlayPause()
+            // 折叠态单击：展开面板；开始/暂停在展开面板内完成。
+            callbacks.onToggleCollapseKnob()
             return
         }
         if (v === expandKnob) {
