@@ -75,6 +75,7 @@ class SidePanelView(
     private var startY = 0
     private var moved = false
     private var longPressPending = false
+    private var longPressFired = false
 
     init {
         setBackgroundResource(com.aitap.autotappro.R.drawable.bg_panel)
@@ -323,10 +324,15 @@ class SidePanelView(
                 startX = panelX; startY = panelY
                 moved = false
                 longPressPending = true
+                longPressFired = false
                 // 折叠态：长按展开面板（单击留给 开始/暂停）。
                 if (collapsed) {
                     postDelayed({
-                        if (longPressPending && !moved) callbacks.onToggleCollapseKnob()
+                        if (longPressPending && !moved) {
+                            longPressPending = false
+                            longPressFired = true
+                            callbacks.onToggleCollapseKnob()
+                        }
                     }, 500)
                 }
             }
@@ -343,10 +349,18 @@ class SidePanelView(
             }
             MotionEvent.ACTION_UP -> {
                 longPressPending = false
+                if (longPressFired) {
+                    // 长按已触发展开：吞掉本次抬起，避免 UP 落点误触刚展开的按钮。
+                    longPressFired = false
+                    return true
+                }
                 if (!moved) dispatchTapAt(e.rawX, e.rawY)
                 else callbacks.onPanelDragEnded()
             }
-            MotionEvent.ACTION_CANCEL -> longPressPending = false
+            MotionEvent.ACTION_CANCEL -> {
+                longPressPending = false
+                longPressFired = false
+            }
         }
         return true
     }
